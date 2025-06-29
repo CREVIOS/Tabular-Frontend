@@ -42,7 +42,7 @@ export function FilesTable({ refreshTrigger }: FilesTableProps) {
     
     try {
       // Check if API server is reachable
-      const healthCheck = await fetch('http://localhost:8000/api/health', { 
+      const healthCheck = await fetch('https://app2.makebell.com:8001/api/health/', { 
         method: 'GET',
         signal: AbortSignal.timeout(5000)
       }).catch(() => null)
@@ -61,7 +61,7 @@ export function FilesTable({ refreshTrigger }: FilesTableProps) {
       }
       
       // Use the correct API URL (matching dashboard)
-      const response = await fetch('http://localhost:8000/api/files/', {
+      const response = await fetch('https://app2.makebell.com:8001/api/files/', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
@@ -149,7 +149,7 @@ export function FilesTable({ refreshTrigger }: FilesTableProps) {
       }
       
       // Use the correct API URL (matching dashboard pattern)
-      const response = await fetch(`http://localhost:8000/api/files/${fileId}/markdown`, {
+      const response = await fetch(`https://app2.makebell.com:8001/api/files/${fileId}/markdown`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'

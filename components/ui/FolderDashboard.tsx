@@ -96,7 +96,7 @@ export default function FolderDashboard({ onFolderSelect, selectedFolderId }: Fo
         return
       }
 
-      const response = await fetch('http://localhost:8000/api/folders/', {
+      const response = await fetch('https://app2.makebell.com:800/api/folders/', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
@@ -129,7 +129,7 @@ export default function FolderDashboard({ onFolderSelect, selectedFolderId }: Fo
         throw new Error('Authentication required')
       }
 
-      const response = await fetch('http://localhost:8000/api/folders/', {
+      const response = await fetch('https://app2.makebell.com:8001/api/folders/', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -176,7 +176,7 @@ export default function FolderDashboard({ onFolderSelect, selectedFolderId }: Fo
         throw new Error('Authentication required')
       }
 
-      const response = await fetch(`http://localhost:8000/api/folders/${editingFolder.id}`, {
+      const response = await fetch(`https://app2.makebell.com:8001/api/folders/${editingFolder.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -221,7 +221,7 @@ export default function FolderDashboard({ onFolderSelect, selectedFolderId }: Fo
         throw new Error('Authentication required')
       }
 
-      const response = await fetch(`http://localhost:8000/api/folders/${folderId}`, {
+      const response = await fetch(`https://app2.makebell.com:8001/api/folders/${folderId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,

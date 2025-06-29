@@ -11,9 +11,9 @@ import type {
   // Environment configuration
   export const getBackendUrl = (): string => {
     if (typeof window !== 'undefined') {
-      return process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+      return process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app2.makebell.com:8001'
     }
-    return process.env.BACKEND_URL || 'http://localhost:8000'
+    return process.env.BACKEND_URL || 'https://app2.makebell.com:8001'
   }
   
   // API Configuration
