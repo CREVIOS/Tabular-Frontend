@@ -205,10 +205,10 @@ export function Sidebar({ className }: SidebarProps) {
       if (!session?.access_token) return
 
       const [reviewsResponse, filesResponse] = await Promise.all([
-        fetch('http://app2.makebell.com:8001/api/reviews/', {
+        fetch('https://app2.makebell.com:8443/api/reviews/', {
           headers: { 'Authorization': `Bearer ${session.access_token}` }
         }),
-        fetch('http://app2.makebell.com:8001/api/files/', {
+        fetch('https://app2.makebell.com:8443/api/files/', {
           headers: { 'Authorization': `Bearer ${session.access_token}` }
         })
       ])
