@@ -66,7 +66,7 @@ export class UploadAPI {
         }
 
         // Start upload for this file
-        const uploadPromise = this.uploadSingleFile(
+        const uploadPromise = UploadAPI.uploadSingleFile(
           fileItem,
           authToken,
           onProgress,
@@ -131,7 +131,7 @@ export class UploadAPI {
           retries
         })
 
-        const uploadedFile = await this.performFileUpload(
+        const uploadedFile = await UploadAPI.performFileUpload(
           fileItem,
           authToken,
           (progress) => onProgress(fileItem.id, {
