@@ -108,7 +108,7 @@ export default function RootLayout({
             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
             img-src 'self' data: https: blob:;
             font-src 'self' https://fonts.gstatic.com;
-            connect-src 'self' http://localhost:8000 https://localhost:8000 ${process.env.NEXT_PUBLIC_API_URL || ''} wss: ws: ${process.env.NEXT_PUBLIC_SUPABASE_URL} wss://knqkunivquuuvnfwrqrn.supabase.co;
+            connect-src 'self' https://app2.makebell.com:8001 https://localhost:8000 ${process.env.NEXT_PUBLIC_API_URL || ''} wss: ws: ${process.env.NEXT_PUBLIC_SUPABASE_URL} wss://knqkunivquuuvnfwrqrn.supabase.co;
             media-src 'self';
             object-src 'none';
             base-uri 'self';

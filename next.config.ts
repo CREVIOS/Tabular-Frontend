@@ -13,20 +13,20 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.BACKEND_URL || 'http://localhost:8000'}/api/:path*`,
+        destination: `${process.env.BACKEND_URL || 'https://app2.makebell.com:8001'}/api/:path*`,
       },
     ];
   },
   
   // Environment variables
   env: {
-    BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:8000',
+    BACKEND_URL: process.env.BACKEND_URL || 'https://app2.makebell.com:8001',
     USE_NGINX_PROXY: process.env.USE_NGINX_PROXY || 'false',
   },
   
   // Public runtime config for client-side
   publicRuntimeConfig: {
-    API_URL: process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || 'http://localhost:8000',
+    API_URL: process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || 'https://app2.makebell.com:8001',
   },
   
   // Enable experimental features for better performance
