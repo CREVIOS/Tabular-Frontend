@@ -165,7 +165,7 @@ export default function AddColumnModal({
         setLocalError('Authentication error. Please log in again.')
         return
       }
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app2.makebell.com:8001'
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://app2.makebell.com:8001'
       const res = await fetch(`${backendUrl}/api/reviews/${reviewId}/columns`, {
         method: 'POST',
         headers: {

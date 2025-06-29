@@ -91,7 +91,7 @@ export default function FileList({
         return
       }
 
-      const response = await fetch('https://app2.makebell.com:8001/api/folders/', {
+      const response = await fetch('http://app2.makebell.com:8001/api/folders/', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'

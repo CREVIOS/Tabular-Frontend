@@ -56,7 +56,7 @@ export default function FileUploadWithFolders({
         return
       }
 
-      const response = await fetch('https://app2.makebell.com:8001/api/folders/', {
+      const response = await fetch('http://app2.makebell.com:8001/api/folders/', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
@@ -161,7 +161,7 @@ export default function FileUploadWithFolders({
         formData.append('folder_id', currentFolderId)
       }
 
-      const response = await fetch('https://app2.makebell.com:8001/api/files/upload', {
+      const response = await fetch('http://app2.makebell.com:8001/api/files/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`

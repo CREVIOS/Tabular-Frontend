@@ -120,7 +120,7 @@ export default function AddFilesModal({
         throw new Error('Authentication required. Please log in again.')
       }
       // Backend URL
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app2.makebell.com:8001'
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://app2.makebell.com:8001'
       const url = `${backendUrl}/api/reviews/${reviewId}/files`
       // POST to backend API
       const response = await fetch(url, {

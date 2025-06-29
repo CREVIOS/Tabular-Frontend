@@ -105,10 +105,10 @@ export default function RootLayout({
           content={`
             default-src 'self';
             script-src 'self' 'unsafe-inline' 'unsafe-eval' ${process.env.NODE_ENV === 'development' ? "'unsafe-inline'" : ''};
-            style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-            img-src 'self' data: https: blob:;
-            font-src 'self' https://fonts.gstatic.com;
-            connect-src 'self' https://app2.makebell.com:8001 https://localhost:8000 ${process.env.NEXT_PUBLIC_API_URL || ''} wss: ws: ${process.env.NEXT_PUBLIC_SUPABASE_URL} wss://knqkunivquuuvnfwrqrn.supabase.co;
+            style-src 'self' 'unsafe-inline' http://fonts.googleapis.com;
+            img-src 'self' data: http: blob:;
+            font-src 'self' http://fonts.gstatic.com;
+            connect-src 'self' http://app2.makebell.com:8001 http://localhost:8000 ${process.env.NEXT_PUBLIC_API_URL || ''} wss: ws: ${process.env.NEXT_PUBLIC_SUPABASE_URL} wss://knqkunivquuuvnfwrqrn.supabase.co;
             media-src 'self';
             object-src 'none';
             base-uri 'self';
@@ -126,8 +126,8 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="//fonts.gstatic.com" />
         
         {/* Preconnect for Performance */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link rel="preconnect" href="http://fonts.googleapis.com" crossOrigin="" />
+        <link rel="preconnect" href="http://fonts.gstatic.com" crossOrigin="" />
         
         {/* Security: Don't expose technology stack */}
         <meta name="generator" content="" />
