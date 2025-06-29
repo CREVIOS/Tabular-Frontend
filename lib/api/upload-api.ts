@@ -263,7 +263,8 @@ export class UploadAPI {
       })
 
       // Start upload
-      xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL || ''}/api/files/upload`)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app2.makebell.com:8443'
+      xhr.open('POST', `${backendUrl}/api/files/upload`)
       xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)
       xhr.send(formData)
     })
