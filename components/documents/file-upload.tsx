@@ -39,6 +39,15 @@ const MAX_CONCURRENT_UPLOADS = 5
 const MAX_RETRIES = 3
 const RETRY_DELAY = 1000
 
+function sanitizeFileName(name: string, maxLength: number = 100): string {
+  // Remove any characters not alphanumeric, dash, underscore, or dot
+  const sanitized = name
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_{2,}/g, '_')
+    .substring(0, maxLength)
+  return sanitized
+}
+
 export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<FileWithStatus[]>([])
   const [uploading, setUploading] = useState(false)
@@ -66,13 +75,17 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
       return allowedExtensions.includes(extension)
     })
     
-    const newFiles: FileWithStatus[] = validFiles.map(file => ({
-      file,
-      status: 'pending',
-      progress: 0,
-      retries: 0,
-      id: generateFileId()
-    }))
+    const newFiles: FileWithStatus[] = validFiles.map(file => {
+      const sanitizedName = sanitizeFileName(file.name)
+      const safeFile = new File([file], sanitizedName, { type: file.type })
+      return {
+        file: safeFile,
+        status: 'pending',
+        progress: 0,
+        retries: 0,
+        id: generateFileId()
+      }
+    })
     
     setSelectedFiles(prev => [...prev, ...newFiles])
     
