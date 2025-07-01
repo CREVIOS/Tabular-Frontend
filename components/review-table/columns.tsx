@@ -36,6 +36,7 @@ export type ReviewTableRow = {
   fileStatus: string
   results: Record<string, ReviewResult | null>
 }
+import { Skeleton } from "@/components/ui/skeleton"
 
 
 function CenteredHeader({
@@ -227,12 +228,23 @@ export function createColumns({
             </CenteredBox>
           )
       
-        if (!res?.extracted_value)
-          return (
-            <CenteredBox>
-              <span className="text-[11px] text-muted-foreground">No data</span>
-            </CenteredBox>
-          )
+if (!res?.extracted_value)
+  return (
+    <div className="w-full p-3">
+      {!res ? (
+        // Show skeleton when no result exists yet (initial loading)
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+      ) : (
+        // Show "No data" only when processing is complete but no value found
+        <CenteredBox>
+          <span className="text-[11px] text-muted-foreground">No data</span>
+        </CenteredBox>
+      )}
+    </div>
+  )
       
         /* ---- success ---- */
         console.log('✅ Rendering data for:', key, res.extracted_value)
