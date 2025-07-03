@@ -1,6 +1,6 @@
-// AddFilesModal.tsx - File addition modal with comprehensive error handling
+// AddFilesModal.tsx - File addition modal with folder-based filtering
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { X, Search, FileText, AlertCircle, CheckCircle, Loader2, Folder } from 'lucide-react'
+import { X, Search, FileText, AlertCircle, CheckCircle, Loader2, Folder, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface FileItem {
@@ -20,13 +20,15 @@ interface AddFilesModalProps {
   onClose: () => void
   reviewId: string
   existingFileIds: string[]
+  existingFiles?: FileItem[] // Optional: pass existing files to determine folder
 }
 
 export default function AddFilesModal({ 
   isOpen, 
   onClose, 
   reviewId, 
-  existingFileIds 
+  existingFileIds,
+  existingFiles = []
 }: AddFilesModalProps) {
   const [availableFiles, setAvailableFiles] = useState<FileItem[]>([])
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([])
@@ -34,9 +36,39 @@ export default function AddFilesModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed'>('completed')
+  const [viewMode, setViewMode] = useState<'folder' | 'all'>('folder')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [reviewFolder, setReviewFolder] = useState<{ id: string; name: string } | null>(null)
   const supabase = createClient()
+  
+  // Determine the folder from existing files
+  const determineReviewFolder = useCallback(() => {
+    if (existingFiles.length === 0) {
+      setViewMode('all')
+      return null
+    }
+
+    // Check if all existing files are from the same folder
+    const folderIds = existingFiles
+      .map(file => file.folder_id)
+      .filter((id, index, arr) => arr.indexOf(id) === index) // unique values
+    
+    if (folderIds.length === 1 && folderIds[0] !== null) {
+      // All files are from the same folder
+      const folder = existingFiles.find(file => file.folder_id === folderIds[0])?.folder
+      if (folder) {
+        const reviewFolder = { id: folderIds[0], name: folder.name }
+        setReviewFolder(reviewFolder)
+        setViewMode('folder')
+        return reviewFolder
+      }
+    }
+    
+    // Mixed folders or no folder - show all files
+    setViewMode('all')
+    return null
+  }, [existingFiles])
   
   // Fetch available files
   const fetchFiles = useCallback(async () => {
@@ -44,22 +76,45 @@ export default function AddFilesModal({
     setError(null)
     
     try {
-      const response = await fetch('/api/files?page_size=100')
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app2.makebell.com:8443'
+      
+      // Determine if we should fetch folder-specific files
+      const folder = determineReviewFolder()
+      
+      let url: string
+      if (viewMode === 'folder' && folder) {
+        // Fetch files from the specific folder
+        url = `${backendUrl}/api/files/?folder_id=${folder.id}&page=1&limit=100`
+      } else {
+        // Fetch all available files
+        url = `${backendUrl}/api/reviews/${reviewId}/files`
+      }
+      
+      const response = await fetch(url)
       
       if (!response.ok) {
         throw new Error(`Failed to fetch files: ${response.statusText}`)
       }
       
       const data = await response.json()
-      setAvailableFiles(data.files || [])
+      
+      // Handle different response formats
+      let files: FileItem[] = []
+      if (viewMode === 'folder') {
+        files = Array.isArray(data) ? data : data.files || []
+      } else {
+        files = data.files || []
+      }
+      
+      setAvailableFiles(files)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load files')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [reviewId, viewMode, determineReviewFolder])
   
-  // Load files when modal opens
+  // Load files when modal opens or view mode changes
   useEffect(() => {
     if (isOpen) {
       fetchFiles()
@@ -108,6 +163,12 @@ export default function AddFilesModal({
     setSelectedFileIds([])
   }, [])
   
+  const toggleViewMode = useCallback(() => {
+    setViewMode(prev => prev === 'folder' ? 'all' : 'folder')
+    setSelectedFileIds([])
+    setSearchQuery('')
+  }, [])
+  
   const handleSubmit = useCallback(async () => {
     if (selectedFileIds.length === 0) return
     setIsSubmitting(true)
@@ -132,7 +193,6 @@ export default function AddFilesModal({
         body: JSON.stringify({ file_ids: selectedFileIds })
       })
 
-      
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         console.log(data)
@@ -169,7 +229,10 @@ export default function AddFilesModal({
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Add Documents</h2>
             <p className="text-sm text-gray-600 mt-1">
-              Select completed documents to add to your review
+              {viewMode === 'folder' && reviewFolder 
+                ? `Add more documents from "${reviewFolder.name}" folder`
+                : 'Select completed documents to add to your review'
+              }
             </p>
           </div>
           <button
@@ -181,8 +244,35 @@ export default function AddFilesModal({
           </button>
         </div>
         
-        {/* Connection Status Warning */}
-        {/* No longer needed as we're not using websockets */}
+        {/* View Mode Toggle */}
+        {reviewFolder && (
+          <div className="px-6 pt-4 pb-2">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleViewMode}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  viewMode === 'folder' 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Folder className="h-4 w-4" />
+                {reviewFolder.name} folder only
+              </button>
+              <button
+                onClick={toggleViewMode}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  viewMode === 'all' 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                All available files
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* Progress Indicator */}
         {isSubmitting && (
@@ -245,9 +335,17 @@ export default function AddFilesModal({
                 Deselect All
               </button>
             </div>
-            <span className="text-sm text-gray-600">
-              {selectedFileIds.length} selected
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600">
+                {selectedFileIds.length} selected
+              </span>
+              {viewMode === 'folder' && reviewFolder && (
+                <div className="flex items-center gap-1 text-sm text-blue-600">
+                  <Folder className="h-3 w-3" />
+                  <span>{reviewFolder.name}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
@@ -271,10 +369,26 @@ export default function AddFilesModal({
           ) : filteredFiles.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-gray-500">
               <FileText className="h-8 w-8 mb-2" />
-              <p className="text-sm font-medium">No documents available</p>
-              <p className="text-xs text-gray-400 mt-1">
-                {searchQuery ? 'Try a different search term' : 'Upload some documents first'}
+              <p className="text-sm font-medium">
+                {viewMode === 'folder' && reviewFolder 
+                  ? `No more documents available in "${reviewFolder.name}" folder`
+                  : 'No documents available'
+                }
               </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {searchQuery ? 'Try a different search term' : 
+                 viewMode === 'folder' ? 'All files from this folder are already in the review' :
+                 'Upload some documents first'}
+              </p>
+              {viewMode === 'folder' && reviewFolder && (
+                <button
+                  onClick={toggleViewMode}
+                  className="mt-3 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <ArrowLeft className="h-3 w-3" />
+                  View all available files
+                </button>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -323,7 +437,7 @@ export default function AddFilesModal({
                         }`}>
                           {file.status}
                         </span>
-                        {file.folder && (
+                        {file.folder && viewMode === 'all' && (
                           <div className="flex items-center gap-1 bg-blue-100 px-2 py-1 rounded">
                             <Folder className="h-3 w-3" />
                             <span className="text-blue-700">{file.folder.name}</span>
