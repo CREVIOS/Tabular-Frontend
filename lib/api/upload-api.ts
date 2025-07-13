@@ -1,6 +1,3 @@
-// ============================================================================
-// DOCUMENTS API - Enhanced File Upload with Retry and Progress
-// ============================================================================
 
 import { apiClient, getAuthToken } from './core'
 import type { 

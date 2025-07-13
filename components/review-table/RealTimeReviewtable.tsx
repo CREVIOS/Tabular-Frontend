@@ -1,4 +1,4 @@
-// Fixed RealTimeReviewTable.tsx
+// Fixed RealTimeReviewTable.tsx - Updated props interface
 import React, { memo, useCallback, useMemo, useEffect, useState } from 'react'
 // import * as XLSX from 'xlsx'
 import { 
@@ -57,6 +57,16 @@ interface CellData {
 }
 
 type RealTimeUpdates = GlobalRealTimeUpdates
+
+// Fixed: Updated props interface to match the calling component
+interface RealTimeReviewTableProps {
+  reviewId: string
+  onStartAnalysis?: () => void
+  onAddColumn?: () => void
+  onAddDocuments?: () => void  // Changed from onFilesAdded
+  reviewName?: string
+  reviewStatus?: string
+}
 
 const useCellDataStore = () => {
   const [cellData, setCellData] = useState<Map<string, CellData>>(new Map())
@@ -195,25 +205,16 @@ const CompletionStats = memo(({
 CompletionStats.displayName = 'CompletionStats'
 
 const supabase = createClient();   
+
+// Fixed: Updated function signature to match the new props interface
 export default function RealTimeReviewTable({ 
-  // onExport,
   reviewId,
   onStartAnalysis,
   onAddColumn,
-  onAddDocuments,
+  onAddDocuments,  // Changed from onFilesAdded
   reviewName = "Document Review",
   reviewStatus = "draft"
-}: {
-  // onExport?: () => void
-  reviewId: string
-  onStartAnalysis?: () => void
-  onAddColumn?: () => void
-  onAddDocuments?: () => void
-  reviewName?: string
-  reviewStatus?: string
-}) {
-  // const supabase = createClient()
-
+}: RealTimeReviewTableProps) {
   // Internal state management
   const [columns, setColumns] = useState<ReviewColumn[]>([])
   const [files, setFiles] = useState<ReviewFile[]>([])
@@ -272,7 +273,7 @@ export default function RealTimeReviewTable({
 
         if (!isMounted) return // Component was unmounted
 
-        // Transform files data
+        // Transform files data with proper null handling
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const transformedFiles: ReviewFile[] = (filesResponse.data || []).map((file: any) => ({
           id: file.id,
@@ -283,7 +284,7 @@ export default function RealTimeReviewTable({
           added_at: file.added_at ?? ''
         }))
         
-        // Update state only once
+        // Update state only once with proper null handling
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const columnsData = (columnsResponse.data || []).map((col: any) => ({
           ...col,
@@ -373,6 +374,8 @@ export default function RealTimeReviewTable({
           console.log('📊 Columns change:', payload.eventType)
           if (payload.eventType === 'INSERT') {
             setColumns(prev => [...prev, payload.new as ReviewColumn])
+            // Trigger onAddColumn callback if provided
+            if (onAddColumn) onAddColumn()
           } else if (payload.eventType === 'UPDATE') {
             setColumns(prev => prev.map(col => 
               col.id === payload.new.id ? payload.new as ReviewColumn : col
@@ -422,6 +425,9 @@ export default function RealTimeReviewTable({
               }
               
               setFiles(prev => [...prev, newFile])
+              
+              // Trigger onAddDocuments callback if provided
+              if (onAddDocuments) onAddDocuments()
               
               // Initialize pending cells for new file (get current columns)
               setColumns(currentColumns => {
@@ -497,7 +503,7 @@ export default function RealTimeReviewTable({
       supabase.removeChannel(filesChannel)
       supabase.removeChannel(resultsChannel)
     }
-  }, [reviewId, updateCell, loading])  
+  }, [reviewId, updateCell, loading, onAddColumn, onAddDocuments])  
 
   const tableData = useMemo<ReviewTableRow[]>(() => {
     if (!files.length) return []
@@ -598,66 +604,6 @@ export default function RealTimeReviewTable({
       }
     })
   }, [columns, getRealTimeUpdates, getProcessingCells, reviewId])
-
-  // Export functionality
-  // const handleExportData = useCallback(() => {
-  //   if (onExport) {
-  //     onExport()
-  //     return
-  //   }
-
-  //   try {
-  //     const wb = XLSX.utils.book_new()
-  //     const exportData: (string | number | null)[][] = []
-      
-  //     // Headers
-  //     const headers = ['Document', ...columns.map(col => col.column_name)]
-  //     exportData.push(headers)
-      
-  //     // Data rows
-  //     tableData.forEach(row => {
-  //       const exportRow: (string | number | null)[] = [row.fileName]
-        
-  //       columns.forEach(column => {
-  //         const result = row.results[column.id]
-  //         let cellValue = result?.extracted_value || ''
-          
-  //         if (result?.confidence_score && result.confidence_score > 0) {
-  //           const confidence = Math.round(result.confidence_score * 100)
-  //           cellValue = cellValue ? `${cellValue} (${confidence}%)` : `(${confidence}%)`
-  //         }
-          
-  //         exportRow.push(cellValue)
-  //       })
-        
-  //       exportData.push(exportRow)
-  //     })
-      
-  //     const ws = XLSX.utils.aoa_to_sheet(exportData)
-  //     XLSX.utils.book_append_sheet(wb, ws, 'Review Data')
-      
-  //     // Add metadata sheet
-  //     const metaData = [
-  //       ['Review Information', ''],
-  //       ['Review Name', reviewName],
-  //       ['Status', reviewStatus],
-  //       ['Total Files', files.length.toString()],
-  //       ['Total Columns', columns.length.toString()],
-  //       ['Export Date', new Date().toLocaleString()]
-  //     ]
-      
-  //     const metaWs = XLSX.utils.aoa_to_sheet(metaData)
-  //     XLSX.utils.book_append_sheet(wb, metaWs, 'Metadata')
-      
-  //     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
-  //     const filename = `${reviewName.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_')}_${timestamp}.xlsx`
-      
-  //     XLSX.writeFile(wb, filename)
-  //   } catch (error) {
-  //     console.error('Error exporting to Excel:', error)
-  //     alert('Failed to export data to Excel. Please try again.')
-  //   }
-  // }, [onExport, tableData, columns, reviewName, reviewStatus, files.length])
   
   // Loading state
   if (loading) {

@@ -1,15 +1,16 @@
-// AddFilesModal.tsx - File addition modal with folder-based filtering
+// AddFilesModal.tsx - Fixed FileItem interface to match database schema
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { X, Search, FileText, AlertCircle, CheckCircle, Loader2, Folder, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+// Fixed: Updated interface to match database schema and ReviewDetailPage
 interface FileItem {
   id: string
   original_filename: string
-  file_size: number
-  status: string
+  file_size: number | null  // Changed from number to number | null
+  status: string | null     // Changed from string to string | null
   folder_id: string | null
-  created_at: string
+  created_at: string | null // Changed from string to string | null
   folder?: {
     name: string
   }
@@ -20,7 +21,7 @@ interface AddFilesModalProps {
   onClose: () => void
   reviewId: string
   existingFileIds: string[]
-  existingFiles?: FileItem[] // Optional: pass existing files to determine folder
+  existingFiles?: FileItem[] // Now compatible with ReviewDetailPage FileItem[]
 }
 
 export default function AddFilesModal({ 
@@ -130,7 +131,7 @@ export default function AddFilesModal({
       // Exclude files already in review
       if (existingFileIds.includes(file.id)) return false
       
-      // Filter by status
+      // Filter by status - handle null values
       if (filterStatus === 'completed' && file.status !== 'completed') return false
       
       // Filter by search query
@@ -210,9 +211,9 @@ export default function AddFilesModal({
     }
   }, [selectedFileIds, reviewId, onClose, supabase])
   
-  // Format file size
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
+  // Fixed: Format file size with null handling
+  const formatFileSize = (bytes: number | null) => {
+    if (bytes === null || bytes === 0) return '0 Bytes'
     const k = 1024
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
@@ -435,7 +436,7 @@ export default function AddFilesModal({
                             ? 'bg-green-100 text-green-700' 
                             : 'bg-yellow-100 text-yellow-700'
                         }`}>
-                          {file.status}
+                          {file.status || 'unknown'}
                         </span>
                         {file.folder && viewMode === 'all' && (
                           <div className="flex items-center gap-1 bg-blue-100 px-2 py-1 rounded">
@@ -443,9 +444,11 @@ export default function AddFilesModal({
                             <span className="text-blue-700">{file.folder.name}</span>
                           </div>
                         )}
-                        <span className="hidden sm:inline">
-                          {new Date(file.created_at).toLocaleDateString()}
-                        </span>
+                        {file.created_at && (
+                          <span className="hidden sm:inline">
+                            {new Date(file.created_at).toLocaleDateString()}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
