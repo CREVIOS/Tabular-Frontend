@@ -1,4 +1,4 @@
-// ReviewDetailPage.tsx - Enhanced with folder detection for AddFilesModal
+// ReviewDetailPage.tsx - Fixed TypeScript errors
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
@@ -26,20 +26,21 @@ interface ToastProps {
 interface FileItem {
   id: string
   original_filename: string
-  file_size: number
-  status: string
+  file_size: number | null
+  status: string | null
   folder_id: string | null
-  created_at: string
+  created_at: string | null
   folder?: {
     name: string
   }
 }
 
+// Fixed: Make added_at optional to match database schema
 interface ReviewFile {
   id: string
   file_id: string
   review_id: string
-  added_at: string
+  added_at: string | null  // Changed from string to string | null
   files?: FileItem
 }
 
@@ -88,6 +89,7 @@ export default function ReviewDetailPage() {
   const [existingFiles, setExistingFiles] = useState<FileItem[]>([])
   const [existingFileIds, setExistingFileIds] = useState<string[]>([])
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [reviewData, setReviewData] = useState<any>(null)
   
   // Toast management
@@ -133,7 +135,7 @@ export default function ReviewDetailPage() {
         throw reviewFilesError
       }
       
-      // Transform the data to match FileItem interface
+      // Transform the data to match FileItem interface with proper null handling
       const transformedFiles: FileItem[] = (reviewFiles || [])
         .filter((rf: ReviewFile) => rf.files) // Only include files that exist
         .map((rf: ReviewFile) => ({
@@ -143,9 +145,10 @@ export default function ReviewDetailPage() {
           status: rf.files!.status,
           folder_id: rf.files!.folder_id,
           created_at: rf.files!.created_at,
-          ...(rf.files!.folders && {
+          // Fixed: Safely access nested folders property
+          ...(rf.files!.folder && {
             folder: {
-              name: rf.files!.folders.name
+              name: rf.files!.folder.name
             }
           })
         }))
@@ -202,6 +205,12 @@ export default function ReviewDetailPage() {
     fetchExistingFiles()
     addToast('success', 'Files added successfully!')
   }, [fetchExistingFiles, addToast])
+  
+  // Handle successful column addition  
+  const handleColumnAdded = useCallback(() => {
+    addToast('success', 'Column added successfully!')
+    setIsAddingColumn(false)
+  }, [addToast])
   
   // Handle export with error handling
   const handleExport = useCallback(async () => {
@@ -306,12 +315,6 @@ export default function ReviewDetailPage() {
     setIsAddingColumn(false)
   }, [])
   
-  // Handle successful column addition
-  const handleColumnAdded = useCallback(() => {
-    addToast('success', 'Column added successfully!')
-    setIsAddingColumn(false)
-  }, [addToast])
-  
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex">
       <div className="w-full mx-auto px-4 py-12 sm:px-8">
@@ -402,12 +405,14 @@ export default function ReviewDetailPage() {
           )}
         </div>
         
-        {/* Real-time table */}
+        {/* Fixed: Updated props to match RealTimeReviewTable interface */}
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-10">
           <RealTimeReviewTable 
             reviewId={reviewId}
-            onFilesAdded={handleFilesAdded}
-            onColumnAdded={handleColumnAdded}
+            onAddDocuments={handleFilesAdded}
+            onAddColumn={handleColumnAdded}
+            reviewName={reviewData?.name || 'Document Review'}
+            reviewStatus={reviewData?.status || 'draft'}
           />
         </div>
         

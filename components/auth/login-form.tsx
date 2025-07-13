@@ -258,12 +258,12 @@ export function LoginForm() {
                 Remember me
               </label>
             </div>
-            <Link 
+            {/* <Link 
               href="/forgot-password" 
               className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
             >
               Forgot password?
-            </Link>
+            </Link> */}
           </div>
 
           {/* Submit Button */}
@@ -317,7 +317,7 @@ export function LoginForm() {
       )}
 
       {/* Register Link */}
-      <div className="text-center pt-4 border-t border-gray-200">
+      {/* <div className="text-center pt-4 border-t border-gray-200">
         <p className="text-sm text-gray-600">
           Don&apos;t have an account?{" "}
           <Link 
@@ -327,7 +327,7 @@ export function LoginForm() {
             Create one here
           </Link>
         </p>
-      </div>
+      </div> */}
     </div>
   )
 }
