@@ -107,10 +107,6 @@ function TabularReviewPageContent() {
     }
   }, [fileIds, setSelectedFiles])
 
-
-
-
-
   // Transform reviews data to include folder info - with safety checks
   const tableData: ReviewTableRow[] = useMemo(() => {
     if (!Array.isArray(reviews)) {
@@ -148,25 +144,6 @@ function TabularReviewPageContent() {
     return filtered
   }, [tableData, searchQuery, statusFilter])
 
-  // Calculate stats
-  //   const stats = useMemo(() => {
-  //   const total = reviews.length
-  //   const completed = reviews.filter(r => r.status === 'completed').length
-  //   const processing = reviews.filter(r => r.status === 'processing').length
-  //   const failed = reviews.filter(r => r.status === 'failed').length
-  //   const totalFiles = reviews.reduce((sum, r) => sum + (r.total_files || 0), 0)
-  //   const avgCompletion = total > 0 ? reviews.reduce((sum, r) => sum + (r.completion_percentage || 0), 0) / total : 0
-    
-  //   return {
-  //     total,
-  //     completed,
-  //     processing,
-  //     failed,
-  //     totalFiles,
-  //     avgCompletion: Math.round(avgCompletion)
-  //   }
-  // }, [reviews])
-
   // Create columns with handlers
   const columns = useMemo(() => {
     return createReviewColumns({
@@ -182,20 +159,6 @@ function TabularReviewPageContent() {
     setSelectedFiles([])
     router.push(`/review/${reviewId}`)         
   }
-
-  // const handleQuickAction = (action: string) => {
-  //   switch (action) {
-  //     case 'create':
-  //       setIsCreatingReview(true)
-  //       break
-  //     case 'templates':
-  //       // Navigate to templates
-  //       break
-  //     case 'analytics':
-  //       // Navigate to analytics
-  //       break
-  //   }
-  // }
 
   if (isLoading) {
     return (
@@ -258,7 +221,6 @@ function TabularReviewPageContent() {
               </Button>
             </div>
           </div>
-
         </div>
 
         {/* Error Display */}
