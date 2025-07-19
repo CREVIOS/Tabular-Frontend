@@ -285,26 +285,6 @@ export function DataTable({
             </div>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          {onAddDocuments && (
-            <Button variant="outline" size="sm" onClick={onAddDocuments} className="h-9">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Documents
-            </Button>
-          )}
-          {onAddColumn && (
-            <Button variant="outline" size="sm" onClick={onAddColumn} className="h-9">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Column
-            </Button>
-          )}
-          {onStartAnalysis && reviewStatus !== 'processing' && (
-            <Button size="sm" onClick={onStartAnalysis} className="h-9">
-              <Play className="mr-2 h-4 w-4" />
-              {reviewStatus === 'completed' ? 'Re-analyze' : 'Start Analysis'}
-            </Button>
-          )}
-        </div>
       </div>
 
       {reviewStatus === 'processing' && (
@@ -346,7 +326,30 @@ export function DataTable({
             </Badge>
           )}
         </div>
+        
+        {/* Right side controls - properly arranged */}
         <div className="flex items-center space-x-2">
+          {/* Action buttons */}
+          {onAddDocuments && (
+            <Button variant="outline" size="sm" onClick={onAddDocuments} className="h-9">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Documents
+            </Button>
+          )}
+          {onAddColumn && (
+            <Button variant="outline" size="sm" onClick={onAddColumn} className="h-9">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Column
+            </Button>
+          )}
+          {onStartAnalysis && reviewStatus !== 'processing' && (
+            <Button size="sm" onClick={onStartAnalysis} className="h-9">
+              <Play className="mr-2 h-4 w-4" />
+              {reviewStatus === 'completed' ? 'Re-analyze' : 'Start Analysis'}
+            </Button>
+          )}
+          
+          {/* Export button */}
           <Button
             variant="outline"
             size="sm"
@@ -355,8 +358,10 @@ export function DataTable({
             title="Export table data to Excel"
           >
             <Download className="mr-2 h-4 w-4" />
-            Export Excel
+            Export Data
           </Button>
+          
+          {/* View options */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9">
