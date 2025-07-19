@@ -360,6 +360,11 @@ export default function FolderDetailPage() {
                 <Dialog open={state.showUpload} onOpenChange={(open) => 
                   setState(prev => ({ ...prev, showUpload: open }))
                 }>
+                  <DialogTrigger asChild>
+                    <div style={{ display: 'none' }}>
+                      <Upload className="h-4 w-4" />
+                    </div>
+                  </DialogTrigger>
                   <DialogContent className="w-[95vw] max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Upload Files to {state.folder.name}</DialogTitle>
