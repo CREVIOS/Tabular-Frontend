@@ -3,7 +3,6 @@
 import * as React from "react"
 import {
   BarChart3,
-  Upload,
   LogOut,
   User,
   Table,
