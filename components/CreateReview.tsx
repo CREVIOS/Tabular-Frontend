@@ -112,9 +112,9 @@ export default function EnhancedCreateReview({
     } else {
       // Real logic - show when no content available
       const hasContent = folders.length > 0 || availableFiles.length > 0
-      setShowNoContentModal(!hasContent && !loadingFolders)
+      setShowNoContentModal(!hasContent && !loadingData)
     }
-  }, [folders, availableFiles, loadingFolders, forceShowNoContentModal])
+  }, [folders, availableFiles, loadingData, forceShowNoContentModal])
 
   const fetchFolders = async () => {
     try {
