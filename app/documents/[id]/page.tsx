@@ -11,13 +11,6 @@ import { FileUpload } from '@/components/documents/file-upload'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -30,7 +23,6 @@ import {
 import { 
   FolderOpen, 
   ArrowLeft, 
-  Upload, 
   RefreshCw, 
   FileText,
   Sparkles
@@ -49,7 +41,6 @@ interface FolderDetailState {
   loading: boolean
   error: string | null
   isAuthenticated: boolean | null
-  showUpload: boolean
 }
 
 export default function FolderDetailPage() {
@@ -64,8 +55,7 @@ export default function FolderDetailPage() {
     files: [],
     loading: true,
     error: null,
-    isAuthenticated: null,
-    showUpload: false
+    isAuthenticated: null
   })
 
   // Utility function to format file sizes
@@ -161,7 +151,6 @@ export default function FolderDetailPage() {
 
   // Event handlers
   const handleUploadSuccess = useCallback((): void => {
-    setState(prev => ({ ...prev, showUpload: false }))
     fetchFolderData()
   }, [fetchFolderData])
 
@@ -210,6 +199,10 @@ export default function FolderDetailPage() {
   const handleViewFile = useCallback((file: FileTableRow): void => {
     router.push(`/documents/file/${file.id}`)
   }, [router])
+
+  const handleUpload = useCallback((): void => {
+    // This will be handled by the FilesDataTable component
+  }, [])
 
   // Column configurations
   const fileColumns = createFileColumns({
@@ -357,27 +350,6 @@ export default function FolderDetailPage() {
                   Back
                 </Button>
                 
-                <Dialog open={state.showUpload} onOpenChange={(open) => 
-                  setState(prev => ({ ...prev, showUpload: open }))
-                }>
-                  <DialogTrigger asChild>
-                    <div style={{ display: 'none' }}>
-                      <Upload className="h-4 w-4" />
-                    </div>
-                  </DialogTrigger>
-                  <DialogContent className="w-[95vw] max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Upload Files to {state.folder.name}</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <FileUpload 
-                        onUploadSuccess={handleUploadSuccess}
-                        folderId={folderId}
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                
                 <Button 
                   onClick={handleCreateReview}
                   variant="outline"
@@ -414,6 +386,7 @@ export default function FolderDetailPage() {
         <FilesDataTable
           columns={fileColumns}
           data={fileTableData}
+          onUpload={handleUpload}
           isLoading={state.loading}
         />
       </div>
