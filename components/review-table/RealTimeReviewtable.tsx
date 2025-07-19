@@ -1,6 +1,5 @@
-// Fixed RealTimeReviewTable.tsx - Updated props interface
+// Fixed RealTimeReviewTable.tsx - Cleaned up with conditional "Currently reviewing" display
 import React, { memo, useCallback, useMemo, useEffect, useState } from 'react'
-// import * as XLSX from 'xlsx'
 import { 
   FileText, 
   Loader2, 
@@ -58,12 +57,11 @@ interface CellData {
 
 type RealTimeUpdates = GlobalRealTimeUpdates
 
-// Fixed: Updated props interface to match the calling component
 interface RealTimeReviewTableProps {
   reviewId: string
   onStartAnalysis?: () => void
   onAddColumn?: () => void
-  onAddDocuments?: () => void  // Changed from onFilesAdded
+  onAddDocuments?: () => void
   reviewName?: string
   reviewStatus?: string
 }
@@ -206,12 +204,11 @@ CompletionStats.displayName = 'CompletionStats'
 
 const supabase = createClient();   
 
-// Fixed: Updated function signature to match the new props interface
 export default function RealTimeReviewTable({ 
   reviewId,
   onStartAnalysis,
   onAddColumn,
-  onAddDocuments,  // Changed from onFilesAdded
+  onAddDocuments,
   reviewName = "Document Review",
   reviewStatus = "draft"
 }: RealTimeReviewTableProps) {
@@ -226,12 +223,11 @@ export default function RealTimeReviewTable({
   // Cell data store for real-time updates
   const { updateCell, getCellData, getAllCellData, getRealTimeUpdates, getProcessingCells } = useCellDataStore()
 
-  // FIXED: Separate initial data fetching from real-time subscriptions
-  // This prevents infinite loops by removing dependencies that change within the effect
+  // Separate initial data fetching from real-time subscriptions
   useEffect(() => {
     if (!reviewId) return
 
-    let isMounted = true // Prevent state updates if component unmounts
+    let isMounted = true
 
     const fetchReviewData = async () => {
       try {
@@ -271,7 +267,7 @@ export default function RealTimeReviewTable({
         if (filesResponse.error) throw filesResponse.error
         if (resultsResponse.error) throw resultsResponse.error
 
-        if (!isMounted) return // Component was unmounted
+        if (!isMounted) return
 
         // Transform files data with proper null handling
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -353,7 +349,7 @@ export default function RealTimeReviewTable({
     }
   }, [reviewId, updateCell])  
 
-  // FIXED: Separate effect for real-time subscriptions
+  // Separate effect for real-time subscriptions
   useEffect(() => {
     if (!reviewId || loading) return
 
@@ -374,7 +370,6 @@ export default function RealTimeReviewTable({
           console.log('📊 Columns change:', payload.eventType)
           if (payload.eventType === 'INSERT') {
             setColumns(prev => [...prev, payload.new as ReviewColumn])
-            // Trigger onAddColumn callback if provided
             if (onAddColumn) onAddColumn()
           } else if (payload.eventType === 'UPDATE') {
             setColumns(prev => prev.map(col => 
@@ -426,10 +421,9 @@ export default function RealTimeReviewTable({
               
               setFiles(prev => [...prev, newFile])
               
-              // Trigger onAddDocuments callback if provided
               if (onAddDocuments) onAddDocuments()
               
-              // Initialize pending cells for new file (get current columns)
+              // Initialize pending cells for new file
               setColumns(currentColumns => {
                 currentColumns.forEach(column => {
                   updateCell(newFile.file_id, column.id, {
@@ -440,7 +434,7 @@ export default function RealTimeReviewTable({
                     timestamp: Date.now()
                   })
                 })
-                return currentColumns // Don't change columns state
+                return currentColumns
               })
             }
           } else if (payload.eventType === 'DELETE') {
@@ -465,7 +459,6 @@ export default function RealTimeReviewTable({
           if (payload.eventType === 'INSERT') {
             const result = payload.new as ReviewResult
             
-            // Update cell data with new result
             updateCell(result.file_id, result.column_id, {
               value: result.extracted_value,
               confidence: result.confidence_score || 0,
@@ -474,12 +467,10 @@ export default function RealTimeReviewTable({
               timestamp: new Date(result.created_at ?? '').getTime()
             })
             
-            // Update results state
             setResults(prev => [...prev, result])
           } else if (payload.eventType === 'UPDATE') {
             const result = payload.new as ReviewResult
             
-            // Update cell data
             updateCell(result.file_id, result.column_id, {
               value: result.extracted_value,
               confidence: result.confidence_score || 0,
@@ -488,7 +479,6 @@ export default function RealTimeReviewTable({
               timestamp: new Date(result.updated_at ?? '').getTime()
             })
             
-            // Update results state
             setResults(prev => prev.map(r => 
               r.id === result.id ? result : r
             ))
@@ -655,10 +645,12 @@ export default function RealTimeReviewTable({
 
   return (
     <div className="w-full space-y-4">
-      {/* Enhanced header with statistics */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <CompletionStats totalCells={totalCells} getAllCellData={getAllCellData} />
-      </div>
+      {/* Enhanced header with statistics - only show for processing or incomplete reviews */}
+      {(reviewStatus === 'processing' || completionPercentage < 100) && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <CompletionStats totalCells={totalCells} getAllCellData={getAllCellData} />
+        </div>
+      )}
       
       {/* DataTable Integration */}
       <DataTable
