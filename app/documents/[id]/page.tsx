@@ -360,12 +360,6 @@ export default function FolderDetailPage() {
                 <Dialog open={state.showUpload} onOpenChange={(open) => 
                   setState(prev => ({ ...prev, showUpload: open }))
                 }>
-                  <DialogTrigger asChild>
-                    <Button className="bg-blue-600 hover:bg-blue-700 touch-target">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Files
-                    </Button>
-                  </DialogTrigger>
                   <DialogContent className="w-[95vw] max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Upload Files to {state.folder.name}</DialogTitle>
@@ -415,7 +409,6 @@ export default function FolderDetailPage() {
         <FilesDataTable
           columns={fileColumns}
           data={fileTableData}
-          onUpload={() => setState(prev => ({ ...prev, showUpload: true }))}
           isLoading={state.loading}
         />
       </div>
