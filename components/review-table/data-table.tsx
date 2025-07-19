@@ -38,18 +38,38 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { ReviewTableRow } from "./columns"
 
+// Import modal components
+import AddFilesModal from "@/app/review/[id]/AddFilesModal"
+import AddColumnModal from "@/app/review/[id]/AddColumnModal"
+
+// File item interface for the modals
+interface FileItem {
+  id: string
+  original_filename: string
+  file_size: number | null
+  status: string | null
+  folder_id: string | null
+  created_at: string | null
+  folder?: {
+    name: string
+  }
+}
+
 interface DataTableProps {
   columns: ColumnDef<ReviewTableRow>[]
   data: ReviewTableRow[]
   reviewName: string
   reviewStatus: string
+  reviewId: string
   onStartAnalysis?: () => void
-  onAddColumn?: () => void
-  onAddDocuments?: () => void
+  onFilesAdded?: () => void
+  onColumnAdded?: () => void
   totalFiles: number
   totalColumns: number
   completionPercentage: number
   reviewColumns?: Array<{ id: string; column_name: string; prompt: string; data_type: string }>
+  existingFiles?: FileItem[]
+  existingFileIds?: string[]
   isMobile?: boolean
 }
 
@@ -82,13 +102,16 @@ export function DataTable({
   data,
   reviewName,
   reviewStatus,
+  reviewId,
   onStartAnalysis,
-  onAddColumn,
-  onAddDocuments,
+  onFilesAdded,
+  onColumnAdded,
   totalFiles,
   totalColumns,
   completionPercentage,
   reviewColumns,
+  existingFiles = [],
+  existingFileIds = [],
 }: DataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -96,6 +119,10 @@ export function DataTable({
   const [globalFilter, setGlobalFilter] = React.useState("")
   const [tableData, setTableData] = React.useState(data)
   const [draggedRow, setDraggedRow] = React.useState<number | null>(null)
+  
+  // Modal state management
+  const [showAddFilesModal, setShowAddFilesModal] = React.useState(false)
+  const [showAddColumnModal, setShowAddColumnModal] = React.useState(false)
 
   // Update table data when prop changes
   React.useEffect(() => {
@@ -169,6 +196,33 @@ export function DataTable({
   const handleDragEnd = React.useCallback(() => {
     setDraggedRow(null)
   }, [])
+
+  // Modal handlers
+  const handleAddFiles = React.useCallback(() => {
+    setShowAddFilesModal(true)
+  }, [])
+
+  const handleAddColumn = React.useCallback(() => {
+    setShowAddColumnModal(true)
+  }, [])
+
+  const handleFilesModalClose = React.useCallback(() => {
+    setShowAddFilesModal(false)
+  }, [])
+
+  const handleColumnModalClose = React.useCallback(() => {
+    setShowAddColumnModal(false)
+  }, [])
+
+  const handleFilesAdded = React.useCallback(() => {
+    setShowAddFilesModal(false)
+    if (onFilesAdded) onFilesAdded()
+  }, [onFilesAdded])
+
+  const handleColumnAdded = React.useCallback(() => {
+    setShowAddColumnModal(false)
+    if (onColumnAdded) onColumnAdded()
+  }, [onColumnAdded])
 
   const exportToExcel = React.useCallback(() => {
     try {
@@ -330,18 +384,14 @@ export function DataTable({
         {/* Right side controls - properly arranged */}
         <div className="flex items-center space-x-2">
           {/* Action buttons */}
-          {onAddDocuments && (
-            <Button variant="outline" size="sm" onClick={onAddDocuments} className="h-9">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Documents
-            </Button>
-          )}
-          {onAddColumn && (
-            <Button variant="outline" size="sm" onClick={onAddColumn} className="h-9">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Column
-            </Button>
-          )}
+          <Button variant="outline" size="sm" onClick={handleAddFiles} className="h-9">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Documents
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleAddColumn} className="h-9">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Column
+          </Button>
           {onStartAnalysis && reviewStatus !== 'processing' && (
             <Button size="sm" onClick={onStartAnalysis} className="h-9">
               <Play className="mr-2 h-4 w-4" />
@@ -551,6 +601,24 @@ export function DataTable({
           </div>
         </div>
       </div>
+
+      {/* Integrated Modals */}
+      <AddFilesModal
+        isOpen={showAddFilesModal}
+        onClose={handleFilesModalClose}
+        reviewId={reviewId}
+        existingFileIds={existingFileIds}
+        existingFiles={existingFiles}
+        onFilesAdded={handleFilesAdded}
+      />
+      
+      <AddColumnModal
+        isOpen={showAddColumnModal}
+        onClose={handleColumnModalClose}
+        reviewId={reviewId}
+        existingColumns={reviewColumns?.map(col => col.column_name) || []}
+        onColumnAdded={handleColumnAdded}
+      />
     </div>
   )
 }

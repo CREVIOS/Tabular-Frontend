@@ -12,8 +12,8 @@ interface ReviewTableProps {
   files: File[]
   onBack: () => void
   onCellClick: (reviewId: string, fileId: string, columnId: string, result: ReviewResult) => void
-  onAddColumn: () => void
-  onAddDocuments: () => void
+  onColumnAdded: () => void
+  onFilesAdded: () => void
   onStartAnalysis: (reviewId: string) => void
   onDropFile: (fileId: string) => void
   isMobile?: boolean
@@ -31,8 +31,8 @@ export const ReviewTable: React.FC<ReviewTableProps> = ({
   files,
   onBack,
   onCellClick,
-  onAddColumn,
-  onAddDocuments,
+  onColumnAdded,
+  onFilesAdded,
   onStartAnalysis,
   onDropFile,
   isMobile = false,
@@ -265,7 +265,7 @@ export const ReviewTable: React.FC<ReviewTableProps> = ({
               <Button
                 variant="outline"
                 size={isMobile ? "sm" : "sm"}
-                onClick={onAddDocuments}
+                onClick={onFilesAdded}
                 className={`flex items-center gap-1 touch-target ${isMobile ? 'text-xs' : ''}`}
               >
                 <Plus className="h-4 w-4" />
@@ -275,7 +275,7 @@ export const ReviewTable: React.FC<ReviewTableProps> = ({
               <Button
                 variant="outline"
                 size={isMobile ? "sm" : "sm"}
-                onClick={onAddColumn}
+                onClick={onColumnAdded}
                 className={`flex items-center gap-1 touch-target ${isMobile ? 'text-xs' : ''}`}
               >
                 <Plus className="h-4 w-4" />
@@ -296,7 +296,7 @@ export const ReviewTable: React.FC<ReviewTableProps> = ({
             <p className={`text-gray-500 mb-6 max-w-md mx-auto ${isMobile ? 'text-sm' : ''}`}>
               Get started by {isMobile ? 'adding' : 'dragging files from the sidebar or clicking the button below to add'} documents for analysis.
             </p>
-            <Button onClick={onAddDocuments} className="bg-blue-600 hover:bg-blue-700 touch-target">
+            <Button onClick={onFilesAdded} className="bg-blue-600 hover:bg-blue-700 touch-target">
               <Plus className="h-4 w-4 mr-2" />
               Add Documents
             </Button>
@@ -332,7 +332,7 @@ export const ReviewTable: React.FC<ReviewTableProps> = ({
             <p className={`text-gray-500 mb-6 max-w-md mx-auto ${isMobile ? 'text-sm' : ''}`}>
               Add columns to define what data you want to extract from the documents.
             </p>
-            <Button onClick={onAddColumn} className="bg-blue-600 hover:bg-blue-700 touch-target">
+            <Button onClick={onColumnAdded} className="bg-blue-600 hover:bg-blue-700 touch-target">
               <Plus className="h-4 w-4 mr-2" />
               Add Column
             </Button>
@@ -403,8 +403,18 @@ export const ReviewTable: React.FC<ReviewTableProps> = ({
             completionPercentage={review.completion_percentage || calculatedCompletionPercentage}
             reviewColumns={review.columns}
             onStartAnalysis={handleStartAnalysisClick}
-            onAddColumn={onAddColumn}
-            onAddDocuments={onAddDocuments}
+            onColumnAdded={onColumnAdded}
+            onFilesAdded={onFilesAdded}
+            reviewId={review.id}
+            existingFiles={files.map(file => ({
+              id: file.id,
+              original_filename: file.name || 'Unknown',
+              file_size: file.file_size || null,
+              status: file.status || null,
+              folder_id: file.folder_id || null,
+              created_at: file.created_at || null
+            }))}
+            existingFileIds={files.map(file => file.id)}
             isMobile={isMobile}
           />
         </div>

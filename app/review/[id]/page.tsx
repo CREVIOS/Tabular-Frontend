@@ -5,17 +5,13 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { 
   ArrowLeft, 
-  Plus, 
   FileText, 
   AlertCircle, 
   CheckCircle, 
-  Download,
-  Loader2
+  Download
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RealTimeReviewTable from '@/components/review-table/RealTimeReviewtable'
-import AddFilesModal from './AddFilesModal'
-import AddColumnModal from './AddColumnModal'
 
 interface ToastProps {
   type: 'success' | 'error' | 'info'
@@ -81,14 +77,9 @@ export default function ReviewDetailPage() {
   const supabase = createClient()
   const reviewId = params.id as string
   
-  // State
-  const [showAddFilesModal, setShowAddFilesModal] = useState(false)
-  const [showAddColumnModal, setShowAddColumnModal] = useState(false)
-  const [isAddingColumn, setIsAddingColumn] = useState(false)
+  // State (modal state management moved to DataTable)
   const [toasts, setToasts] = useState<Array<{id: string; type: 'success' | 'error' | 'info'; message: string}>>([])
   const [existingFiles, setExistingFiles] = useState<FileItem[]>([])
-  const [existingFileIds, setExistingFileIds] = useState<string[]>([])
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [reviewData, setReviewData] = useState<any>(null)
   
@@ -106,7 +97,7 @@ export default function ReviewDetailPage() {
   const fetchExistingFiles = useCallback(async () => {
     if (!reviewId) return
     
-    setIsLoadingFiles(true)
+    // Loading state removed - handled by DataTable
     try {
       // Fetch review files with file details and folder information
       const { data: reviewFiles, error: reviewFilesError } = await supabase
@@ -154,15 +145,12 @@ export default function ReviewDetailPage() {
         }))
       
       setExistingFiles(transformedFiles)
-      setExistingFileIds(transformedFiles.map(f => f.id))
       
       console.log('Existing files loaded:', transformedFiles.length, transformedFiles)
       
     } catch (error) {
       console.error('Error fetching existing files:', error)
       addToast('error', 'Failed to load existing files')
-    } finally {
-      setIsLoadingFiles(false)
     }
   }, [reviewId, supabase, addToast])
   
@@ -209,7 +197,6 @@ export default function ReviewDetailPage() {
   // Handle successful column addition  
   const handleColumnAdded = useCallback(() => {
     addToast('success', 'Column added successfully!')
-    setIsAddingColumn(false)
   }, [addToast])
   
   // Handle export with error handling
@@ -305,15 +292,7 @@ export default function ReviewDetailPage() {
     }
   }, [reviewId, supabase, addToast])
   
-  // Handle modal close with confirmation if operations are in progress
-  const handleCloseAddFilesModal = useCallback(() => {
-    setShowAddFilesModal(false)
-  }, [])
-  
-  const handleCloseAddColumnModal = useCallback(() => {
-    setShowAddColumnModal(false)
-    setIsAddingColumn(false)
-  }, [])
+  // Modal handlers no longer needed - handled by DataTable
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex">
@@ -357,29 +336,7 @@ export default function ReviewDetailPage() {
             </div>
           </div>
           
-          {/* Action buttons */}
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setShowAddFilesModal(true)}
-              disabled={isLoadingFiles}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
-            >
-              {isLoadingFiles ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileText className="h-4 w-4" />
-              )}
-              Add Documents
-            </button>
-            <button 
-              onClick={() => { setShowAddColumnModal(true); setIsAddingColumn(true); }}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-              disabled={isAddingColumn}
-            >
-              <Plus className="h-4 w-4" />
-              {isAddingColumn ? 'Adding Column...' : 'Add Column'}
-            </button>
-          </div>
+          {/* Action buttons moved to DataTable toolbar */}
           
           {/* Status indicators */}
           {existingFiles.length > 0 && (
@@ -409,28 +366,14 @@ export default function ReviewDetailPage() {
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-10">
           <RealTimeReviewTable 
             reviewId={reviewId}
-            onAddDocuments={handleFilesAdded}
-            onAddColumn={handleColumnAdded}
+            onFilesAdded={handleFilesAdded}
+            onColumnAdded={handleColumnAdded}
             reviewName={reviewData?.name || 'Document Review'}
             reviewStatus={reviewData?.status || 'draft'}
           />
         </div>
         
-        {/* Modals */}
-        <AddFilesModal
-          isOpen={showAddFilesModal}
-          onClose={handleCloseAddFilesModal}
-          reviewId={reviewId}
-          existingFileIds={existingFileIds}
-          existingFiles={existingFiles}
-        />
-        
-        <AddColumnModal
-          isOpen={showAddColumnModal}
-          onClose={handleCloseAddColumnModal}
-          reviewId={reviewId}
-          existingColumns={reviewData?.tabular_review_columns || []}
-        />
+        {/* Modals are now integrated in the DataTable component */}
         
         {/* Toast notifications */}
         <div className="fixed top-6 right-6 z-50 space-y-3">

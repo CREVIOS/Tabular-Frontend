@@ -22,6 +22,7 @@ interface AddFilesModalProps {
   reviewId: string
   existingFileIds: string[]
   existingFiles?: FileItem[] // Now compatible with ReviewDetailPage FileItem[]
+  onFilesAdded?: () => void
 }
 
 export default function AddFilesModal({ 
@@ -29,7 +30,8 @@ export default function AddFilesModal({
   onClose, 
   reviewId, 
   existingFileIds,
-  existingFiles = []
+  existingFiles = [],
+  onFilesAdded
 }: AddFilesModalProps) {
   const [availableFiles, setAvailableFiles] = useState<FileItem[]>([])
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([])
@@ -203,13 +205,14 @@ export default function AddFilesModal({
       setTimeout(() => {
         setIsSubmitting(false)
         setSuccessMessage(null)
+        if (onFilesAdded) onFilesAdded()
         onClose()
       }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add files')
       setIsSubmitting(false)
     }
-  }, [selectedFileIds, reviewId, onClose, supabase])
+  }, [selectedFileIds, reviewId, onClose, supabase, onFilesAdded])
   
   // Fixed: Format file size with null handling
   const formatFileSize = (bytes: number | null) => {
