@@ -60,8 +60,8 @@ type RealTimeUpdates = GlobalRealTimeUpdates
 interface RealTimeReviewTableProps {
   reviewId: string
   onStartAnalysis?: () => void
-  onAddColumn?: () => void
-  onAddDocuments?: () => void
+  onColumnAdded?: () => void
+  onFilesAdded?: () => void
   reviewName?: string
   reviewStatus?: string
 }
@@ -207,8 +207,8 @@ const supabase = createClient();
 export default function RealTimeReviewTable({ 
   reviewId,
   onStartAnalysis,
-  onAddColumn,
-  onAddDocuments,
+  onColumnAdded,
+  onFilesAdded,
   reviewName = "Document Review",
   reviewStatus = "draft"
 }: RealTimeReviewTableProps) {
@@ -370,7 +370,7 @@ export default function RealTimeReviewTable({
           console.log('📊 Columns change:', payload.eventType)
           if (payload.eventType === 'INSERT') {
             setColumns(prev => [...prev, payload.new as ReviewColumn])
-            if (onAddColumn) onAddColumn()
+            if (onColumnAdded) onColumnAdded()
           } else if (payload.eventType === 'UPDATE') {
             setColumns(prev => prev.map(col => 
               col.id === payload.new.id ? payload.new as ReviewColumn : col
@@ -421,7 +421,7 @@ export default function RealTimeReviewTable({
               
               setFiles(prev => [...prev, newFile])
               
-              if (onAddDocuments) onAddDocuments()
+              if (onFilesAdded) onFilesAdded()
               
               // Initialize pending cells for new file
               setColumns(currentColumns => {
@@ -493,7 +493,7 @@ export default function RealTimeReviewTable({
       supabase.removeChannel(filesChannel)
       supabase.removeChannel(resultsChannel)
     }
-  }, [reviewId, updateCell, loading, onAddColumn, onAddDocuments])  
+  }, [reviewId, updateCell, loading, onColumnAdded, onFilesAdded])  
 
   const tableData = useMemo<ReviewTableRow[]>(() => {
     if (!files.length) return []
@@ -658,9 +658,10 @@ export default function RealTimeReviewTable({
         data={tableData}
         reviewName={reviewName}
         reviewStatus={reviewStatus}
+        reviewId={reviewId}
         onStartAnalysis={onStartAnalysis}
-        onAddColumn={onAddColumn}
-        onAddDocuments={onAddDocuments}
+        onFilesAdded={onFilesAdded}
+        onColumnAdded={onColumnAdded}
         totalFiles={files.length}
         totalColumns={columns.length}
         completionPercentage={completionPercentage}
@@ -670,6 +671,15 @@ export default function RealTimeReviewTable({
           prompt: col.prompt,
           data_type: col.data_type
         }))}
+        existingFiles={files.map(file => ({
+          id: file.file_id,
+          original_filename: file.filename,
+          file_size: file.file_size,
+          status: file.status,
+          folder_id: null,
+          created_at: file.added_at
+        }))}
+        existingFileIds={files.map(file => file.file_id)}
       />
 
       {/* Document Viewer Modal */}

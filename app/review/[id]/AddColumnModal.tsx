@@ -8,6 +8,7 @@ interface AddColumnModalProps {
   onClose: () => void
   reviewId: string
   existingColumns: string[]
+  onColumnAdded?: () => void
 }
 
 interface FormData {
@@ -64,7 +65,8 @@ export default function AddColumnModal({
   isOpen, 
   onClose, 
   reviewId, 
-  existingColumns 
+  existingColumns,
+  onColumnAdded 
 }: AddColumnModalProps) {
   const [formData, setFormData] = useState<FormData>({
     column_name: '',
@@ -193,13 +195,14 @@ export default function AddColumnModal({
       setTimeout(() => {
         setLoading(false)
         setSuccess(false)
+        if (onColumnAdded) onColumnAdded()
         onClose()
       }, 1200)
     } catch (err) {
       setLoading(false)
       setLocalError(err instanceof Error ? err.message : 'Failed to add column')
     }
-  }, [formData, reviewId, validateForm, onClose])
+  }, [formData, reviewId, validateForm, onClose, onColumnAdded])
   
   if (!isOpen) return null
   

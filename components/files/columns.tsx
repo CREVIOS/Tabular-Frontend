@@ -217,7 +217,7 @@ export const createFileColumns = ({
     },
   },
   {
-    accessorKey: "upload_date",
+    accessorKey: "created_at",
     header: ({ column }) => {
       return (
         <Button
@@ -231,7 +231,7 @@ export const createFileColumns = ({
       )
     },
     cell: ({ row }) => {
-      const uploadDate = row.getValue("upload_date") as string
+      const uploadDate = row.getValue("created_at") as string
       
       const formatDate = (dateString: string) => {
         try {
