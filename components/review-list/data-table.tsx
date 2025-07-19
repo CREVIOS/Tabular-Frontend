@@ -3,8 +3,8 @@
 import * as React from "react"
 import {
   ColumnDef,
+  ColumnFiltersState,
   SortingState,
-  VisibilityState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -12,7 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { Search, RotateCcw, Plus, Table as TableIcon, Sparkles, ChevronDown } from "lucide-react"
+import { Search, Filter, RotateCcw, Plus, Table as TableIcon, Sparkles, ChevronDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -53,12 +53,7 @@ export function ReviewDataTable<TData, TValue>({
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "created_at", desc: true } // Default to most recent first
   ])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
-    // Hide some columns on mobile by default
-    folderName: true,
-    total_columns: true,
-    created_at: true,
-  })
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = React.useState({})
   const [globalFilter, setGlobalFilter] = React.useState("")
 
@@ -66,17 +61,17 @@ export function ReviewDataTable<TData, TValue>({
     data,
     columns,
     onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: "includesString",
     state: {
       sorting,
-      columnVisibility,
+      columnFilters,
       rowSelection,
       globalFilter,
     },
@@ -89,15 +84,65 @@ export function ReviewDataTable<TData, TValue>({
 
   const resetFilters = React.useCallback(() => {
     setGlobalFilter("")
+    setColumnFilters([])
     setSorting([{ id: "created_at", desc: true }])
   }, [])
 
-  const handleColumnToggle = React.useCallback((columnId: string, visible: boolean) => {
-    const column = table.getColumn(columnId)
-    if (column) {
-      column.toggleVisibility(!!visible)
-    }
+  const statusOptions = React.useMemo(() => [
+    { value: "completed", label: "Completed", color: "bg-green-100 text-green-800" },
+    { value: "processing", label: "Processing", color: "bg-blue-100 text-blue-800" },
+    { value: "failed", label: "Failed", color: "bg-red-100 text-red-800" },
+    { value: "draft", label: "Draft", color: "bg-gray-100 text-gray-800" },
+  ], [])
+
+  // Enhanced handlers with better performance
+  const handleStatusFilterChange = React.useCallback((value: string, checked: boolean) => {
+    const statusColumn = table.getColumn("status")
+    if (!statusColumn) return
+    
+    const currentFilter = (statusColumn.getFilterValue() as string[]) ?? []
+    const newFilter = checked
+      ? [...currentFilter, value]
+      : currentFilter.filter((filterValue) => filterValue !== value)
+    
+    statusColumn.setFilterValue(newFilter.length ? newFilter : undefined)
   }, [table])
+
+  const handleFolderFilterChange = React.useCallback((folderName: string, checked: boolean) => {
+    const folderColumn = table.getColumn("folderName")
+    if (!folderColumn) return
+    
+    const currentFilter = (folderColumn.getFilterValue() as string[]) ?? []
+    const newFilter = checked
+      ? [...currentFilter, folderName]
+      : currentFilter.filter((value) => value !== folderName)
+    
+    folderColumn.setFilterValue(newFilter.length ? newFilter : undefined)
+  }, [table])
+
+  const getStatusCounts = React.useMemo(() => {
+    const counts = {
+      completed: 0,
+      processing: 0,
+      failed: 0,
+      draft: 0,
+    };
+
+    
+    // data.forEach((item:ItemType) => {
+    //   if (counts.hasOwnProperty(item.status)) {
+    //     counts[item.status as keyof typeof counts]++
+    //   }
+    // })
+
+    (data as Array<{ status: keyof typeof counts }>).forEach((item) => {
+    if (counts.hasOwnProperty(item.status)) {
+      counts[item.status]++;
+    }
+  });
+    
+    return counts
+  }, [data])
 
   return (
     <div className="w-full space-y-4 sm:space-y-6 p-4 sm:p-6">
@@ -124,7 +169,7 @@ export function ReviewDataTable<TData, TValue>({
           </div>
         )}
 
-        {/* Enhanced Search and Controls Bar */}
+        {/* Enhanced Search and Filters Bar */}
         <Card className="border-0 shadow-sm bg-gray-50">
           <CardContent className="p-4">
             <div className="flex flex-col lg:flex-row gap-4">
@@ -139,40 +184,107 @@ export function ReviewDataTable<TData, TValue>({
                 />
               </div>
 
-              {/* Controls Container */}
+              {/* Filters Container */}
               <div className="flex flex-col sm:flex-row gap-3">
-                {/* Column Visibility */}
+                {/* Status Filter */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="touch-target">
-                      <span className="hidden sm:inline">Columns</span>
-                      <span className="sm:hidden">Cols</span>
+                    <Button variant="outline" className="justify-between min-w-[120px] touch-target">
+                      <div className="flex items-center gap-2">
+                        <Filter className="h-4 w-4" />
+                        <span>Status</span>
+                      </div>
+                      {!!table.getColumn("status")?.getFilterValue() && (
+                        <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
+                          {((table.getColumn("status")?.getFilterValue() as string[]) || []).length}
+                        </Badge>
+                      )}
                       <ChevronDown className="h-4 w-4 ml-1" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                  <DropdownMenuContent align="start" className="w-56">
+                    <DropdownMenuLabel className="flex items-center justify-between">
+                      Filter by Status
+                      <Badge variant="outline" className="text-xs">
+                        {data.length} total
+                      </Badge>
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {table
-                      .getAllColumns()
-                      .filter((column) => column.getCanHide())
-                      .map((column) => {
-                        return (
-                          <DropdownMenuCheckboxItem
-                            key={column.id}
-                            className="capitalize"
-                            checked={column.getIsVisible()}
-                            onCheckedChange={(value) => handleColumnToggle(column.id, value)}
-                          >
-                            {column.id.replace(/([A-Z])/g, ' $1').trim()}
-                          </DropdownMenuCheckboxItem>
-                        )
-                      })}
+                    {statusOptions.map((option) => (
+                      <DropdownMenuCheckboxItem
+                        key={option.value}
+                        checked={
+                          (table.getColumn("status")?.getFilterValue() as string[])?.includes(option.value) ?? false
+                        }
+                        onCheckedChange={(checked) => handleStatusFilterChange(option.value, checked)}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${option.color.split(' ')[0]}`} />
+                          <span>{option.label}</span>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {getStatusCounts[option.value as keyof typeof getStatusCounts]}
+                        </Badge>
+                      </DropdownMenuCheckboxItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
 
+                {/* Folder Filter */}
+                {folders.length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="justify-between min-w-[120px] touch-target">
+                        <div className="flex items-center gap-2">
+                          <Filter className="h-4 w-4" />
+                          <span>Folder</span>
+                        </div>
+                        {!!table.getColumn("folderName")?.getFilterValue() && (
+                          <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs">
+                            Active
+                          </Badge>
+                        )}
+                        <ChevronDown className="h-4 w-4 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      <DropdownMenuLabel>Filter by Folder</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuCheckboxItem
+                        checked={
+                          (table.getColumn("folderName")?.getFilterValue() as string[])?.includes("") ?? false
+                        }
+                        onCheckedChange={(checked) => handleFolderFilterChange("", checked)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-gray-300" />
+                          <span>Uncategorized</span>
+                        </div>
+                      </DropdownMenuCheckboxItem>
+                      {folders.map((folder) => (
+                        <DropdownMenuCheckboxItem
+                          key={folder.id}
+                          checked={
+                            (table.getColumn("folderName")?.getFilterValue() as string[])?.includes(folder.name) ?? false
+                          }
+                          onCheckedChange={(checked) => handleFolderFilterChange(folder.name, checked)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: folder.color }}
+                            />
+                            <span>{folder.name}</span>
+                          </div>
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+
                 {/* Reset Filters */}
-                {globalFilter && (
+                {(globalFilter || columnFilters.length > 0) && (
                   <Button variant="outline" size="sm" onClick={resetFilters} className="touch-target">
                     <RotateCcw className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">Reset</span>
@@ -237,11 +349,11 @@ export function ReviewDataTable<TData, TValue>({
                         <div className="text-center">
                           <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews found</h3>
                           <p className="text-sm text-gray-500 mb-6 max-w-md">
-                            {globalFilter
-                              ? "Try adjusting your search criteria to see more results."
+                            {globalFilter || columnFilters.length > 0
+                              ? "Try adjusting your search criteria or clearing filters to see more results."
                               : "Create your first tabular review to start extracting structured data from documents."}
                           </p>
-                          {!globalFilter && (
+                          {!globalFilter && columnFilters.length === 0 && (
                             <Button 
                               onClick={onCreateReview} 
                               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 touch-target"
