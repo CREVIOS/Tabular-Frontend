@@ -7,17 +7,11 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { 
   RefreshCw, 
   Plus, 
-  Search, 
-  LayoutGrid, 
-  LayoutList,
-  FileText,
   BarChart3,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 
 // API imports
 import { fetchReviewsData } from '@/lib/api/reviews-api'
@@ -65,9 +59,6 @@ function TabularReviewPageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isCreatingReview, setIsCreatingReview] = useState(!!folderId || fileIds.length > 0)
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
   
   // Fetch reviews data
   useEffect(() => {
@@ -124,25 +115,6 @@ function TabularReviewPageContent() {
     
     return transformedData
   }, [reviews, folders])
-
-  // Filter reviews based on search and status
-  const filteredReviews = useMemo(() => {
-    let filtered = tableData
-    
-    if (searchQuery) {
-      filtered = filtered.filter(review => 
-        review.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        review.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        review.folderName?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    }
-    
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(review => review.status === statusFilter)
-    }
-    
-    return filtered
-  }, [tableData, searchQuery, statusFilter])
 
   // Create columns with handlers
   const columns = useMemo(() => {
@@ -246,175 +218,17 @@ function TabularReviewPageContent() {
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <CardTitle className="text-xl font-semibold">Your Reviews</CardTitle>
-              
-              {/* Controls */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-                {/* Search */}
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search reviews..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 touch-target"
-                  />
-                </div>
-
-                {/* Status Filter */}
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white touch-target"
-                >
-                  <option value="all">All Status</option>
-                  <option value="completed">Completed</option>
-                  <option value="processing">Processing</option>
-                  <option value="failed">Failed</option>
-                  <option value="draft">Draft</option>
-                </select>
-
-                {/* View Mode Toggle */}
-                <div className="flex border rounded-lg">
-                  <Button
-                    variant={viewMode === 'table' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('table')}
-                    className="touch-target"
-                  >
-                    <LayoutList className="h-4 w-4" />
-                    <span className="ml-1 sm:hidden">Table</span>
-                  </Button>
-                  <Button
-                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('grid')}
-                    className="touch-target"
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                    <span className="ml-1 sm:hidden">Grid</span>
-                  </Button>
-                </div>
-              </div>
             </div>
           </CardHeader>
 
           <CardContent className="p-0">
-            {viewMode === 'table' ? (
-              <ReviewDataTable
-                columns={columns}
-                data={filteredReviews}
-                selectedFiles={selectedFiles}
-                onCreateReview={() => setIsCreatingReview(true)}
-                folders={folders}
-              />
-            ) : (
-              <div className="p-6">
-                {filteredReviews.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <BarChart3 className="h-12 w-12 text-gray-400" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                      {searchQuery || statusFilter !== 'all' ? 'No reviews found' : 'No reviews yet'}
-                    </h3>
-                    <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                      {searchQuery || statusFilter !== 'all' 
-                        ? 'Try adjusting your search criteria or filters' 
-                        : 'Create your first review to start extracting structured data from documents.'
-                      }
-                    </p>
-                    {!searchQuery && statusFilter === 'all' && (
-                      <Button 
-                        onClick={() => setIsCreatingReview(true)}
-                        className="bg-blue-600 hover:bg-blue-700 touch-target"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create First Review
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredReviews.map((review) => (
-                      <Card 
-                        key={review.id} 
-                        className="hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200"
-                        onClick={() => router.push(`/review/${review.id}`)}
-                      >
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-gray-900 truncate mb-1" title={review.name}>
-                                {review.name}
-                              </h3>
-                              {review.description && (
-                                <p className="text-sm text-gray-600 line-clamp-2" title={review.description}>
-                                  {review.description}
-                                </p>
-                              )}
-                            </div>
-                            <Badge variant={
-                              review.status === 'completed' ? 'default' :
-                              review.status === 'processing' ? 'secondary' :
-                              review.status === 'error' ? 'destructive' : 'outline'
-                            }>
-                              {review.status}
-                            </Badge>
-                          </div>
-
-                          <div className="space-y-3">
-                            {/* Progress */}
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs text-gray-600">Progress</span>
-                                <span className="text-xs font-medium">{Math.round(review.completion_percentage || 0)}%</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div 
-                                  className={`h-2 rounded-full transition-all duration-300 ${
-                                    (review.completion_percentage || 0) >= 100 ? 'bg-green-500' :
-                                    (review.completion_percentage || 0) >= 50 ? 'bg-blue-500' : 'bg-yellow-500'
-                                  }`}
-                                  style={{ width: `${review.completion_percentage || 0}%` }}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Stats */}
-                            <div className="flex items-center justify-between text-sm text-gray-600">
-                              <div className="flex items-center gap-1">
-                                <FileText className="h-3 w-3" />
-                                <span>{review.total_files || 0} files</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <BarChart3 className="h-3 w-3" />
-                                <span>{review.total_columns || 0} columns</span>
-                              </div>
-                            </div>
-
-                            {/* Folder */}
-                            {review.folderName && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <div 
-                                  className="w-3 h-3 rounded-full"
-                                  style={{ backgroundColor: review.folderColor }}
-                                />
-                                <span className="text-gray-600 truncate">{review.folderName}</span>
-                              </div>
-                            )}
-
-                            {/* Date */}
-                            <div className="text-xs text-gray-500">
-                              Created {new Date(review.created_at).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            <ReviewDataTable
+              columns={columns}
+              data={tableData}
+              selectedFiles={selectedFiles}
+              onCreateReview={() => setIsCreatingReview(true)}
+              folders={folders}
+            />
           </CardContent>
         </Card>
       </div>
