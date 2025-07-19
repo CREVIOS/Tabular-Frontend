@@ -1,5 +1,5 @@
 import React from 'react'
-import { X, FileText, Info } from 'lucide-react'
+import { X, FileText, Info, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,6 +30,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     onClose()
   }
 
+  // Use long value if available, otherwise fall back to short value
+  const displayValue = selectedCell.longValue || selectedCell.value
+  const hasDetailedAnswer = selectedCell.longValue && selectedCell.longValue !== selectedCell.value
+
   return (
     <div 
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -46,8 +50,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div className="min-w-0">
-              <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-lg' : 'text-xl'}`}>Document Source</h3>
-              <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>View extracted content and source reference</p>
+              <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-lg' : 'text-xl'}`}>Document Analysis</h3>
+              <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                {hasDetailedAnswer ? 'Detailed analysis and source reference' : 'Extracted content and source reference'}
+              </p>
             </div>
           </div>
           <Button 
@@ -63,21 +69,42 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
         
         {/* Scrollable Content - Enhanced for mobile */}
         <div className={`flex-1 overflow-y-auto space-y-4 min-h-0 ${isMobile ? 'p-4' : 'p-6 space-y-6'}`}>
-          {/* Extracted Value Card */}
+          {/* Show short answer if we have detailed answer */}
+          {hasDetailedAnswer && selectedCell.value && (
+            <Card className="border-green-200 bg-green-50/50">
+              <CardHeader className={isMobile ? 'pb-2 p-4' : 'pb-3'}>
+                <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                  <Info className="h-5 w-5 text-green-600" />
+                  <span>Quick Answer</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className={`${isMobile ? 'p-4 pt-0' : ''}`}>
+                <div className="bg-white p-4 rounded-lg border border-green-200">
+                  <p className={`text-gray-900 leading-relaxed break-words font-medium ${isMobile ? 'text-sm' : ''}`}>
+                    {selectedCell.value}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Detailed Analysis Card */}
           <Card className="border-blue-200 bg-blue-50/50">
             <CardHeader className={isMobile ? 'pb-2 p-4' : 'pb-3'}>
               <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-base' : 'text-lg'}`}>
-                <Info className="h-5 w-5 text-blue-600" />
-                <span>Extracted Information</span>
+                <BookOpen className="h-5 w-5 text-blue-600" />
+                <span>{hasDetailedAnswer ? 'Detailed Analysis' : 'Extracted Information'}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className={`space-y-3 ${isMobile ? 'p-4 pt-0' : 'space-y-4'}`}>
               <div>
                 <label className={`text-gray-700 block mb-2 font-semibold ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                  Extracted Value:
+                  {hasDetailedAnswer ? 'Full Analysis:' : 'Extracted Value:'}
                 </label>
-                <div className="bg-white p-4 rounded-lg border border-blue-200">
-                  <p className={`text-gray-900 leading-relaxed break-words ${isMobile ? 'text-sm' : ''}`}>{selectedCell.value}</p>
+                <div className="bg-white p-4 rounded-lg border border-blue-200 max-h-64 overflow-y-auto">
+                  <p className={`text-gray-900 leading-relaxed break-words whitespace-pre-wrap ${isMobile ? 'text-sm' : ''}`}>
+                    {displayValue}
+                  </p>
                 </div>
               </div>
               
@@ -86,8 +113,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                   <label className={`text-gray-700 block mb-2 font-semibold ${isMobile ? 'text-sm' : 'text-sm'}`}>
                     Source Reference:
                   </label>
-                  <div className="bg-white p-3 rounded-lg border border-blue-200">
-                    <p className={`text-gray-600 break-words ${isMobile ? 'text-xs' : 'text-sm'}`}>{selectedCell.sourceRef}</p>
+                  <div className="bg-white p-3 rounded-lg border border-blue-200 max-h-32 overflow-y-auto">
+                    <p className={`text-gray-600 break-words ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      {selectedCell.sourceRef}
+                    </p>
                   </div>
                 </div>
                 
@@ -98,7 +127,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                     </label>
                     <div className="bg-white p-3 rounded-lg border border-blue-200">
                       <Badge 
-                        variant={selectedCell.confidence > 0.8 ? 'default' : 'secondary'}
+                        variant={selectedCell.confidence > 0.8 ? 'default' : selectedCell.confidence > 0.5 ? 'secondary' : 'destructive'}
                         className="text-sm"
                       >
                         {Math.round(selectedCell.confidence * 100)}% confident
@@ -109,7 +138,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               </div>
             </CardContent>
           </Card>
-
         </div>
 
         {/* Footer - Enhanced for mobile */}

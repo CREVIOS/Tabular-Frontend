@@ -42,6 +42,17 @@ import { ReviewTableRow } from "./columns"
 import AddFilesModal from "@/app/review/[id]/AddFilesModal"
 import AddColumnModal from "@/app/review/[id]/AddColumnModal"
 
+// Add export modal import and Dialog components
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+
 // File item interface for the modals
 interface FileItem {
   id: string
@@ -65,7 +76,6 @@ interface DataTableProps {
   onFilesAdded?: () => void
   onColumnAdded?: () => void
   totalFiles: number
-  totalColumns: number
   completionPercentage: number
   reviewColumns?: Array<{ id: string; column_name: string; prompt: string; data_type: string }>
   existingFiles?: FileItem[]
@@ -107,7 +117,6 @@ export function DataTable({
   onFilesAdded,
   onColumnAdded,
   totalFiles,
-  totalColumns,
   completionPercentage,
   reviewColumns,
   existingFiles = [],
@@ -123,6 +132,15 @@ export function DataTable({
   // Modal state management
   const [showAddFilesModal, setShowAddFilesModal] = React.useState(false)
   const [showAddColumnModal, setShowAddColumnModal] = React.useState(false)
+  const [showExportModal, setShowExportModal] = React.useState(false)
+  
+  // Export customization state
+  const [exportConfig, setExportConfig] = React.useState({
+    selectedColumns: reviewColumns?.map(col => col.id) || [],
+    answerType: 'short' as 'short' | 'long' | 'both',
+    includeConfidence: true,
+    includeSource: false
+  })
 
   // Update table data when prop changes
   React.useEffect(() => {
@@ -224,45 +242,113 @@ export function DataTable({
     if (onColumnAdded) onColumnAdded()
   }, [onColumnAdded])
 
-  const exportToExcel = React.useCallback(() => {
+  // Export modal handlers
+  const handleShowExportModal = React.useCallback(() => {
+    // Initialize with all available columns selected
+    setExportConfig(prev => ({
+      ...prev,
+      selectedColumns: reviewColumns?.map(col => col.id) || []
+    }))
+    setShowExportModal(true)
+  }, [reviewColumns])
+
+  const handleExportModalClose = React.useCallback(() => {
+    setShowExportModal(false)
+  }, [])
+
+  const handleColumnToggle = React.useCallback((columnId: string, checked: boolean) => {
+    setExportConfig(prev => ({
+      ...prev,
+      selectedColumns: checked 
+        ? [...prev.selectedColumns, columnId]
+        : prev.selectedColumns.filter(id => id !== columnId)
+    }))
+  }, [])
+
+  const handleSelectAllColumns = React.useCallback(() => {
+    setExportConfig(prev => ({
+      ...prev,
+      selectedColumns: reviewColumns?.map(col => col.id) || []
+    }))
+  }, [reviewColumns])
+
+  const handleDeselectAllColumns = React.useCallback(() => {
+    setExportConfig(prev => ({
+      ...prev,
+      selectedColumns: []
+    }))
+  }, [])
+
+  const executeExport = React.useCallback(() => {
     try {
       const filteredData = table.getFilteredRowModel().rows.map(row => row.original)
       const wb = XLSX.utils.book_new()
       const exportData: (string | number | null)[][] = []
       
+      // Build headers based on configuration
       const headers = ['Document']
-      const visibleColumns = table.getVisibleLeafColumns()
-      const columnOrder: string[] = ['fileName'] 
+      const selectedReviewColumns = reviewColumns?.filter(col => 
+        exportConfig.selectedColumns.includes(col.id)
+      ) || []
       
-      visibleColumns.forEach(column => {
-        if (column.id === 'fileName') {
-        } else if (column.id === 'actions') {
-          
+      selectedReviewColumns.forEach(column => {
+        if (exportConfig.answerType === 'both') {
+          headers.push(`${column.column_name} (Short)`)
+          headers.push(`${column.column_name} (Long)`)
+          if (exportConfig.includeConfidence) {
+            headers.push(`${column.column_name} (Confidence)`)
+          }
+          if (exportConfig.includeSource) {
+            headers.push(`${column.column_name} (Source)`)
+          }
         } else {
-          const columnName = getColumnDisplayName(column.id, reviewColumns)
-          headers.push(columnName)
-          columnOrder.push(column.id)
+          const suffix = exportConfig.answerType === 'long' ? ' (Long)' : ''
+          headers.push(`${column.column_name}${suffix}`)
+          if (exportConfig.includeConfidence) {
+            headers.push(`${column.column_name} (Confidence)`)
+          }
+          if (exportConfig.includeSource) {
+            headers.push(`${column.column_name} (Source)`)
+          }
         }
       })
       
       exportData.push(headers)
       
+      // Build rows based on configuration
       filteredData.forEach(row => {
-        const exportRow: (string | number | null)[] = []
+        const exportRow: (string | number | null)[] = [row.fileName]
         
-        columnOrder.forEach(columnId => {
-          if (columnId === 'fileName') {
-            exportRow.push(row.fileName)
-          } else {
-            const result = row.results[columnId]
-            let cellValue = result?.extracted_value || ''
+        selectedReviewColumns.forEach(column => {
+          const result = row.results[column.id]
+          
+          if (exportConfig.answerType === 'both') {
+            // Short answer
+            exportRow.push(result?.extracted_value || '')
+            // Long answer  
+            exportRow.push(result?.long || '')
             
-            if (result?.confidence_score && result.confidence_score > 0) {
-              const confidence = Math.round(result.confidence_score * 100)
-              cellValue = cellValue ? `${cellValue} (${confidence}%)` : `(${confidence}%)`
+            if (exportConfig.includeConfidence) {
+              const confidence = result?.confidence_score ? Math.round(result.confidence_score * 100) : 0
+              exportRow.push(confidence)
             }
+            if (exportConfig.includeSource) {
+              exportRow.push(result?.source_reference || '')
+            }
+          } else {
+            // Single answer type
+            const value = exportConfig.answerType === 'long' 
+              ? (result?.long || '') 
+              : (result?.extracted_value || '')
+            exportRow.push(value)
             
-            exportRow.push(cellValue)
+            if (exportConfig.includeConfidence) {
+              const confidence = result?.confidence_score ? Math.round(result.confidence_score * 100) : 0
+              exportRow.push(confidence)
+            }
+            if (exportConfig.includeSource) {
+              exportRow.push(result?.source_reference || '')
+            }
           }
         })
         
@@ -271,28 +357,34 @@ export function DataTable({
       
       const ws = XLSX.utils.aoa_to_sheet(exportData)
       
+      // Set column widths
       const colWidths = headers.map((header: string, index: number) => {
-        if (index === 0) return { wch: 35 } 
+        if (index === 0) return { wch: 35 } // Document column
         
         let maxWidth = header.length
-        exportData.slice(1, 6).forEach(row => { 
+        exportData.slice(1, 6).forEach(row => {
           if (row[index] && typeof row[index] === 'string') {
             maxWidth = Math.max(maxWidth, row[index].length)
           }
         })
         
-        return { wch: Math.min(Math.max(maxWidth + 2, 15), 50) } 
+        return { wch: Math.min(Math.max(maxWidth + 2, 15), 50) }
       })
       ws['!cols'] = colWidths
       
       XLSX.utils.book_append_sheet(wb, ws, 'Review Data')
       
+      // Create metadata sheet
       const metaData = [
-        ['Review Information', ''],
+        ['Export Configuration', ''],
         ['Review Name', reviewName],
         ['Status', reviewStatus],
+        ['Answer Type', exportConfig.answerType === 'both' ? 'Short & Long' : 
+                     exportConfig.answerType === 'long' ? 'Long Answer' : 'Short Answer'],
+        ['Include Confidence', exportConfig.includeConfidence ? 'Yes' : 'No'],
+        ['Include Source', exportConfig.includeSource ? 'Yes' : 'No'],
         ['Total Files', totalFiles.toString()],
-        ['Total Columns', totalColumns.toString()],
+        ['Selected Columns', exportConfig.selectedColumns.length.toString()],
         ['Completion', `${completionPercentage}%`],
         ['Export Date', new Date().toLocaleString()],
         ['Exported Records', filteredData.length.toString()],
@@ -300,32 +392,33 @@ export function DataTable({
         ['Column Definitions', '']
       ]
       
-      if (reviewColumns) {
+      if (selectedReviewColumns.length > 0) {
         metaData.push(['Column Name', 'Prompt', 'Data Type'])
-        reviewColumns.forEach(col => {
-          if (columnOrder.includes(col.id)) {
-            metaData.push([col.column_name, col.prompt, col.data_type])
-          }
+        selectedReviewColumns.forEach(col => {
+          metaData.push([col.column_name, col.prompt, col.data_type])
         })
       }
       
       const metaWs = XLSX.utils.aoa_to_sheet(metaData)
       metaWs['!cols'] = [{ wch: 20 }, { wch: 50 }]
-      XLSX.utils.book_append_sheet(wb, metaWs, 'Metadata')
+      XLSX.utils.book_append_sheet(wb, metaWs, 'Export Info')
       
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
       const sanitizedName = reviewName.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_')
-      const filename = `${sanitizedName}_${timestamp}.xlsx`
+      const answerTypeSuffix = exportConfig.answerType === 'both' ? '_complete' : 
+                             exportConfig.answerType === 'long' ? '_detailed' : '_summary'
+      const filename = `${sanitizedName}${answerTypeSuffix}_${timestamp}.xlsx`
       
       XLSX.writeFile(wb, filename)
       
       console.log(`Excel file exported: ${filename}`)
+      setShowExportModal(false)
       
     } catch (error) {
       console.error('Error exporting to Excel:', error)
       alert('Failed to export data to Excel. Please try again.')
     }
-  }, [table, reviewColumns, reviewName, reviewStatus, totalFiles, totalColumns, completionPercentage])
+  }, [table, reviewColumns, reviewName, reviewStatus, totalFiles, completionPercentage, exportConfig])
 
   return (
     <div className="w-full space-y-6">
@@ -403,9 +496,9 @@ export function DataTable({
           <Button
             variant="outline"
             size="sm"
-            onClick={exportToExcel}
+            onClick={handleShowExportModal}
             className="h-9"
-            title="Export table data to Excel"
+            title="Customize and export table data"
           >
             <Download className="mr-2 h-4 w-4" />
             Export Data
@@ -619,6 +712,147 @@ export function DataTable({
         existingColumns={reviewColumns?.map(col => col.column_name) || []}
         onColumnAdded={handleColumnAdded}
       />
+
+      {/* Export Customization Modal */}
+      <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Customize Export</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Answer Type Selection */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Answer Type</Label>
+              <RadioGroup 
+                value={exportConfig.answerType} 
+                onValueChange={(value: 'short' | 'long' | 'both') => 
+                  setExportConfig(prev => ({ ...prev, answerType: value }))
+                }
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="short" id="short" />
+                  <Label htmlFor="short">Short Answer Only</Label>
+                  <span className="text-sm text-gray-500">(Quick extracted values)</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="long" id="long" />
+                  <Label htmlFor="long">Long Answer Only</Label>
+                  <span className="text-sm text-gray-500">(Detailed explanations)</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="both" id="both" />
+                  <Label htmlFor="both">Both Short & Long</Label>
+                  <span className="text-sm text-gray-500">(Complete data set)</span>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Additional Options */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Additional Data</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="confidence"
+                    checked={exportConfig.includeConfidence}
+                    onCheckedChange={(checked) => 
+                      setExportConfig(prev => ({ ...prev, includeConfidence: checked as boolean }))
+                    }
+                  />
+                  <Label htmlFor="confidence">Include Confidence Scores</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="source"
+                    checked={exportConfig.includeSource}
+                    onCheckedChange={(checked) => 
+                      setExportConfig(prev => ({ ...prev, includeSource: checked as boolean }))
+                    }
+                  />
+                  <Label htmlFor="source">Include Source References</Label>
+                </div>
+              </div>
+            </div>
+
+            {/* Column Selection */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Columns to Export</Label>
+                <div className="space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleSelectAllColumns}
+                  >
+                    Select All
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleDeselectAllColumns}
+                  >
+                    Deselect All
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto border rounded-lg p-3">
+                {reviewColumns?.map(column => (
+                  <div key={column.id} className="flex items-start space-x-2">
+                    <Checkbox
+                      id={`col-${column.id}`}
+                      checked={exportConfig.selectedColumns.includes(column.id)}
+                      onCheckedChange={(checked) => 
+                        handleColumnToggle(column.id, checked as boolean)
+                      }
+                    />
+                    <div className="flex-1">
+                      <Label 
+                        htmlFor={`col-${column.id}`}
+                        className="font-medium cursor-pointer"
+                      >
+                        {column.column_name}
+                      </Label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {column.prompt.slice(0, 100)}
+                        {column.prompt.length > 100 ? '...' : ''}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Export Summary */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">Export Summary</h4>
+              <div className="text-sm text-blue-800 space-y-1">
+                <p>• {exportConfig.selectedColumns.length} column(s) selected</p>
+                <p>• {totalFiles} document(s) to export</p>
+                <p>• Answer type: {exportConfig.answerType === 'both' ? 'Short & Long' : 
+                               exportConfig.answerType === 'long' ? 'Long Answer' : 'Short Answer'}</p>
+                {exportConfig.includeConfidence && <p>• Confidence scores included</p>}
+                {exportConfig.includeSource && <p>• Source references included</p>}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3">
+            <Button variant="outline" onClick={handleExportModalClose}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={executeExport}
+              disabled={exportConfig.selectedColumns.length === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export Excel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
