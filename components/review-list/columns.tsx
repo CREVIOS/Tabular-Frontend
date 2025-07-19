@@ -134,9 +134,6 @@ export const createReviewColumns = ({ onSelectReview, onDeleteReview }: ColumnsP
         </div>
       )
     },
-    filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id))
-    },
   },
   {
     accessorKey: "folderName",
@@ -180,9 +177,6 @@ export const createReviewColumns = ({ onSelectReview, onDeleteReview }: ColumnsP
           </span>
         </div>
       )
-    },
-    filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id))
     },
   },
   {
@@ -410,4 +404,4 @@ export const createReviewColumns = ({ onSelectReview, onDeleteReview }: ColumnsP
       )
     },
   },
-] 
+]
