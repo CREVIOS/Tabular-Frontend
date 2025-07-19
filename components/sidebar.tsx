@@ -43,12 +43,6 @@ const sidebarItems = [
     href: "/documents",
     description: "Browse & Organize",
   },
-  {
-    title: "Upload",
-    icon: Upload,
-    href: "/upload",
-    description: "Add New Files",
-  },
 ]
 
 
