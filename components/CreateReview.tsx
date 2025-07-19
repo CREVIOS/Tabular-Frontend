@@ -627,7 +627,7 @@ export default function EnhancedCreateReview({
 
                         {/* File Selector Modal */}
                         <Dialog open={showFileSelector} onOpenChange={setShowFileSelector}>
-                          <DialogContent className="sm:max-w-2xl">
+                          <DialogContent className="sm:max-w-4xl max-h-[80vh] flex flex-col">
                             <DialogHeader>
                               <DialogTitle>Select Files for Review</DialogTitle>
                               <DialogDescription>
@@ -635,7 +635,7 @@ export default function EnhancedCreateReview({
                               </DialogDescription>
                             </DialogHeader>
                             
-                            <div className="space-y-4">
+                            <div className="flex flex-col flex-1 min-h-0 space-y-4">
                               <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                                 <Input
@@ -646,7 +646,7 @@ export default function EnhancedCreateReview({
                                 />
                               </div>
                               
-                              <div className="max-h-80 overflow-y-auto">
+                              <div className="flex-1 overflow-y-auto">
                                 {loadingData ? (
                                   <div className="flex items-center justify-center py-8">
                                     <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -660,21 +660,20 @@ export default function EnhancedCreateReview({
                                       </div>
                                     ) : (
                                       getFilteredAvailableFiles().map(file => (
-                                        <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                                            <FileText className="h-4 w-4 text-gray-600 flex-shrink-0" />
-                                            <div className="min-w-0 flex-1">
-                                              <p className="text-sm font-medium text-gray-900 truncate">
-                                                {file.original_filename}
-                                              </p>
-                                              <p className="text-xs text-gray-500">
-                                                {formatFileSize(file.file_size)} • {new Date(file.created_at).toLocaleDateString()}
-                                              </p>
-                                            </div>
+                                        <div key={file.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+                                          <FileText className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-gray-900 break-words">
+                                              {file.original_filename}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                              {formatFileSize(file.file_size)} • {new Date(file.created_at).toLocaleDateString()}
+                                            </p>
                                           </div>
                                           <Button
                                             size="sm"
                                             onClick={() => handleFileToggle(file.id)}
+                                            className="flex-shrink-0"
                                           >
                                             <Plus className="h-4 w-4 mr-1" />
                                             Add
