@@ -14,8 +14,7 @@ import {
   Search,
   Trash2,
   Upload,
-  FolderPlus,
-  ArrowRight
+  FolderPlus
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,6 +25,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { createReview } from '@/lib/api/reviews-api'
 import { fetchDocumentsData } from '@/lib/api/documents-api'
 import type { Folder as ApiFolder, File as ApiFile } from '@/lib/api/types'
@@ -112,9 +112,9 @@ export default function EnhancedCreateReview({
     } else {
       // Real logic - show when no content available
       const hasContent = folders.length > 0 || availableFiles.length > 0
-      setShowNoContentModal(!hasContent && !loadingData)
+      setShowNoContentModal(!hasContent && !loadingFolders)
     }
-  }, [folders, availableFiles, loadingData, forceShowNoContentModal])
+  }, [folders, availableFiles, loadingFolders, forceShowNoContentModal])
 
   const fetchFolders = async () => {
     try {
@@ -280,6 +280,7 @@ export default function EnhancedCreateReview({
   const handleGoToDocuments = () => {
     // Navigate to the documents page
     window.location.href = '/documents'
+    setShowNoContentModal(false)
   }
 
   // Validation
@@ -305,110 +306,88 @@ export default function EnhancedCreateReview({
     return 'upcoming'
   }
 
-  // No Content Modal
-  const NoContentModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="p-4 bg-white bg-opacity-20 rounded-full">
-              <FolderPlus className="h-12 w-12 text-white" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-2">No Documents Available</h2>
-          <p className="text-blue-100">You need to create folders and upload documents before creating a review</p>
-        </div>
-
-        {/* Content */}
-        <div className="p-8">
-          <div className="space-y-6">
-            <div className="text-center">
-              <p className="text-gray-600 text-lg mb-6">
-                To create a tabular review, you first need to organize your documents in folders.
-              </p>
-            </div>
+  // Show no content modal if needed
+  if (showNoContentModal) {
+    return (
+      <Dialog open={showNoContentModal} onOpenChange={setShowNoContentModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderPlus className="h-5 w-5 text-blue-600" />
+              No Documents Available
+            </DialogTitle>
+            <DialogDescription>
+              You need to create folders and upload documents before creating a review.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              To create a tabular review, you first need to organize your documents in folders.
+            </p>
 
             {/* Steps */}
-            <div className="space-y-4">
-              <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl">
-                <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
                   1
                 </div>
                 <div>
-                  <h4 className="font-semibold text-blue-900 mb-1">Create a Folder</h4>
-                  <p className="text-blue-700 text-sm">Organize your documents by category (e.g., "Contracts", "Invoices", "Reports")</p>
+                  <h4 className="text-sm font-semibold text-blue-900">Create a Folder</h4>
+                  <p className="text-xs text-blue-700">Organize your documents by category</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 bg-green-50 rounded-xl">
-                <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
+              <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                <div className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
                   2
                 </div>
                 <div>
-                  <h4 className="font-semibold text-green-900 mb-1">Upload Documents</h4>
-                  <p className="text-green-700 text-sm">Add PDF, Word, or other document files to your folder</p>
+                  <h4 className="text-sm font-semibold text-green-900">Upload Documents</h4>
+                  <p className="text-xs text-green-700">Add PDF, Word, or other document files</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 bg-purple-50 rounded-xl">
-                <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
+              <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg">
+                <div className="w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
                   3
                 </div>
                 <div>
-                  <h4 className="font-semibold text-purple-900 mb-1">Create Review</h4>
-                  <p className="text-purple-700 text-sm">Return here to extract structured data from your documents</p>
+                  <h4 className="text-sm font-semibold text-purple-900">Create Review</h4>
+                  <p className="text-xs text-purple-700">Return here to extract structured data</p>
                 </div>
-              </div>
-            </div>
-
-            {/* Call to Action */}
-            <div className="bg-gray-50 rounded-xl p-6 text-center">
-              <Upload className="h-8 w-8 text-gray-500 mx-auto mb-3" />
-              <h4 className="font-semibold text-gray-900 mb-2">Ready to get started?</h4>
-              <p className="text-gray-600 text-sm mb-4">
-                Go to the Documents page to create your first folder and upload files.
-              </p>
-              
-              <div className="flex gap-3 justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowNoContentModal(false)}
-                  className="px-6"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleGoToDocuments}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-6"
-                >
-                  Go to Documents
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
               </div>
             </div>
 
             {/* Preview Toggle (for demo purposes) */}
-            <div className="border-t pt-4">
-              <div className="flex items-center justify-center gap-3 text-sm text-gray-500">
+            <div className="border-t pt-3">
+              <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
                 <span>Preview Mode:</span>
                 <button
                   onClick={() => setForceShowNoContentModal(!forceShowNoContentModal)}
-                  className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs font-medium transition-colors"
+                  className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs transition-colors"
                 >
                   {forceShowNoContentModal ? 'Always Show Modal' : 'Normal Logic'}
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  )
 
-  // Show no content modal if needed
-  if (showNoContentModal) {
-    return <NoContentModal />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowNoContentModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleGoToDocuments}>
+              <Upload className="h-4 w-4 mr-2" />
+              Go to Documents
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
   }
 
   return (
@@ -647,34 +626,27 @@ export default function EnhancedCreateReview({
                         )}
 
                         {/* File Selector Modal */}
-                        {showFileSelector && (
-                          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
-                              <div className="p-6 border-b border-gray-200">
-                                <div className="flex items-center justify-between">
-                                  <h3 className="text-lg font-semibold text-gray-900">Select Files for Review</h3>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setShowFileSelector(false)}
-                                  >
-                                    <X className="h-5 w-5" />
-                                  </Button>
-                                </div>
-                                <div className="mt-4">
-                                  <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                                    <Input
-                                      placeholder="Search files..."
-                                      value={fileSearchQuery}
-                                      onChange={(e) => setFileSearchQuery(e.target.value)}
-                                      className="pl-10"
-                                    />
-                                  </div>
-                                </div>
+                        <Dialog open={showFileSelector} onOpenChange={setShowFileSelector}>
+                          <DialogContent className="sm:max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Select Files for Review</DialogTitle>
+                              <DialogDescription>
+                                Choose files to include in this review
+                              </DialogDescription>
+                            </DialogHeader>
+                            
+                            <div className="space-y-4">
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                <Input
+                                  placeholder="Search files..."
+                                  value={fileSearchQuery}
+                                  onChange={(e) => setFileSearchQuery(e.target.value)}
+                                  className="pl-10"
+                                />
                               </div>
                               
-                              <div className="p-6 overflow-y-auto max-h-96">
+                              <div className="max-h-80 overflow-y-auto">
                                 {loadingData ? (
                                   <div className="flex items-center justify-center py-8">
                                     <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -703,7 +675,6 @@ export default function EnhancedCreateReview({
                                           <Button
                                             size="sm"
                                             onClick={() => handleFileToggle(file.id)}
-                                            className="bg-blue-600 hover:bg-blue-700"
                                           >
                                             <Plus className="h-4 w-4 mr-1" />
                                             Add
@@ -714,23 +685,20 @@ export default function EnhancedCreateReview({
                                   </div>
                                 )}
                               </div>
-                              
-                              <div className="p-6 border-t border-gray-200 bg-gray-50">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-gray-600">
-                                    {currentSelectedFiles.length} files selected
-                                  </span>
-                                  <Button
-                                    onClick={() => setShowFileSelector(false)}
-                                    className="bg-green-600 hover:bg-green-700"
-                                  >
-                                    Done
-                                  </Button>
-                                </div>
-                              </div>
                             </div>
-                          </div>
-                        )}
+                            
+                            <DialogFooter>
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-sm text-gray-600">
+                                  {currentSelectedFiles.length} files selected
+                                </span>
+                                <Button onClick={() => setShowFileSelector(false)}>
+                                  Done
+                                </Button>
+                              </div>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                     )}
 
