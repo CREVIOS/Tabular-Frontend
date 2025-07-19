@@ -40,26 +40,8 @@ export interface ReviewColumn {
   column_order: number;
 }
 
-export interface ReviewResult {
-  file_id: string;
-  column_id: string;
-  extracted_value: string | null;
-  confidence_score: number;
-  source_reference: string;
-  error?: boolean;
-  timestamp?: number;
-  status?: 'completed' | 'error';
-}
 
-export interface SelectedCell {
-  reviewId: string;
-  fileId: string;
-  columnId: string;
-  value: string | null;
-  sourceRef: string;
-  confidence: number | null;
-  markdownContent?: string;
-}
+
 
 export interface File {
   id: string;
@@ -126,6 +108,7 @@ export interface SSEMessage {
 // This should match what columns.tsx expects
 export interface RealTimeUpdate extends Partial<ReviewResult> {
   extracted_value: string | null;
+  long_value: string | null;
   confidence_score: number | undefined;
   source_reference: string;
   error?: boolean;
@@ -134,7 +117,6 @@ export interface RealTimeUpdate extends Partial<ReviewResult> {
   status?: 'completed' | 'error';
 }
 
-export type RealTimeUpdates = Record<string, RealTimeUpdate>;
 
 // Data table row type for review detail pages
 export interface ReviewDetailTableRow {
@@ -143,3 +125,30 @@ export interface ReviewDetailTableRow {
   fileStatus: string;
   results: Record<string, ReviewResult | null>;
 }
+
+
+export interface ReviewResult {
+  id: string
+  review_id: string
+  file_id: string
+  column_id: string
+  extracted_value: string | null  // Short answer
+  long?: string | null             // Long answer (optional for backward compatibility)
+  confidence_score: number | null
+  source_reference: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SelectedCell {
+  reviewId: string
+  fileId: string
+  columnId: string
+  value: string | null        // Short answer
+  longValue?: string | null   // Long answer
+  sourceRef: string
+  confidence: number | null
+}
+
+
+export type RealTimeUpdates = Record<string, RealTimeUpdate>;

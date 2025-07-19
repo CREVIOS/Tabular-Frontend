@@ -35,25 +35,28 @@ interface ReviewFile {
   added_at: string
 }
 
+interface CellData {
+  short_value: string | null
+  long_value: string | null
+  confidence: number
+  source: string | null
+  status: 'pending' | 'processing' | 'completed' | 'error'
+  timestamp: number
+}
+
 interface ReviewResult {
   id: string
   review_id: string
   file_id: string
   column_id: string
-  extracted_value: string | null
+  extracted_value: string | null  // This is the short answer
+  long: string | null             // This is the long answer
   confidence_score: number | null
   source_reference: string | null
   created_at: string
   updated_at: string
 }
 
-interface CellData {
-  value: string | null
-  confidence: number
-  source: string | null
-  status: 'pending' | 'processing' | 'completed' | 'error'
-  timestamp: number
-}
 
 type RealTimeUpdates = GlobalRealTimeUpdates
 
@@ -90,7 +93,8 @@ const useCellDataStore = () => {
     cellData.forEach((data, key) => {
       if (data.status === 'completed' || data.status === 'error') {
         updates[key] = {
-          extracted_value: data.value,
+          extracted_value: data.short_value,
+          long_value: data.long_value,
           confidence_score: data.confidence,
           source_reference: data.source || '',
           timestamp: data.timestamp,
@@ -113,7 +117,8 @@ const useCellDataStore = () => {
   
   return { updateCell, getCellData, getAllCellData, getRealTimeUpdates, getProcessingCells }
 }
-
+  
+ 
 const CompletionStats = memo(({ 
   totalCells, 
   getAllCellData 
@@ -301,7 +306,8 @@ export default function RealTimeReviewTable({
         // Initialize cell data with existing results
         resultsData.forEach(result => {
           updateCell(result.file_id, result.column_id, {
-            value: result.extracted_value,
+            short_value: result.extracted_value,
+            long_value: result.long,
             confidence: result.confidence_score || 0,
             source: result.source_reference,
             status: 'completed',
@@ -318,7 +324,8 @@ export default function RealTimeReviewTable({
             
             if (!existingResult) {
               updateCell(file.file_id, column.id, {
-                value: null,
+                short_value: null,
+                long_value: null,
                 confidence: 0,
                 source: null,
                 status: 'pending',
@@ -327,6 +334,7 @@ export default function RealTimeReviewTable({
             }
           })
         })
+        
 
         console.log('✅ Review data loaded successfully')
         
@@ -427,7 +435,8 @@ export default function RealTimeReviewTable({
               setColumns(currentColumns => {
                 currentColumns.forEach(column => {
                   updateCell(newFile.file_id, column.id, {
-                    value: null,
+                    short_value: null,
+                    long_value: null,
                     confidence: 0,
                     source: null,
                     status: 'pending',
@@ -444,7 +453,7 @@ export default function RealTimeReviewTable({
       )
       .subscribe()
 
-    const resultsChannel = supabase
+      const resultsChannel = supabase
       .channel(`results-${reviewId}`)
       .on(
         'postgres_changes',
@@ -460,7 +469,8 @@ export default function RealTimeReviewTable({
             const result = payload.new as ReviewResult
             
             updateCell(result.file_id, result.column_id, {
-              value: result.extracted_value,
+              short_value: result.extracted_value,
+              long_value: result.long,
               confidence: result.confidence_score || 0,
               source: result.source_reference,
               status: 'completed',
@@ -472,7 +482,8 @@ export default function RealTimeReviewTable({
             const result = payload.new as ReviewResult
             
             updateCell(result.file_id, result.column_id, {
-              value: result.extracted_value,
+              short_value: result.extracted_value,
+              long_value: result.long,
               confidence: result.confidence_score || 0,
               source: result.source_reference,
               status: 'completed',
@@ -503,6 +514,7 @@ export default function RealTimeReviewTable({
       columnId: string,
       partial: Partial<GlobalReviewResult> & {
         extracted_value: string | null
+        long_value: string | null
         confidence_score: number
         source_reference: string | null
         timestamp: number
@@ -514,12 +526,13 @@ export default function RealTimeReviewTable({
       file_id: fileId,
       column_id: columnId,
       extracted_value: partial.extracted_value,
+      long: partial.long_value,
       confidence_score: partial.confidence_score,
       source_reference: partial.source_reference ?? '',
       created_at: new Date(partial.timestamp).toISOString(),
       updated_at: new Date(partial.timestamp).toISOString(),
     } as GlobalReviewResult)
-
+  
     return files.map(file => {
       const resultsForFile: Record<string, GlobalReviewResult | null> = {}
       
@@ -531,7 +544,8 @@ export default function RealTimeReviewTable({
         
         if (cellData && (cellData.status === 'completed' || cellData.status === 'error')) {
           resultsForFile[column.id] = makeTempResult(file.file_id, column.id, {
-            extracted_value: cellData.value,
+            extracted_value: cellData.short_value,
+            long_value: cellData.long_value,
             confidence_score: cellData.confidence,
             source_reference: cellData.source ?? '',
             timestamp: cellData.timestamp,
@@ -540,6 +554,7 @@ export default function RealTimeReviewTable({
         } else if (existingResult) {
           resultsForFile[column.id] = makeTempResult(file.file_id, column.id, {
             extracted_value: existingResult.extracted_value,
+            long_value: existingResult.long,
             confidence_score: existingResult.confidence_score ?? 0,
             source_reference: existingResult.source_reference ?? '',
             timestamp: new Date(existingResult.created_at).getTime(),
@@ -565,35 +580,38 @@ export default function RealTimeReviewTable({
   }, [files, columns, getCellData, results, reviewId])
 
   // Create table columns
-  const tableColumns = useMemo(() => {
-    if (!columns.length) return []
-    
-    return createColumns({
-      columns: columns as unknown as GlobalReviewColumn[],
-      realTimeUpdates: getRealTimeUpdates() as GlobalRealTimeUpdates,
-      processingCells: getProcessingCells(),
-      onCellClick: (fileId: string, columnId: string, result: GlobalReviewResult) => {
-        setSelectedCell({
-          reviewId,
-          fileId,
-          columnId,
-          value: result.extracted_value,
-          sourceRef: result.source_reference ?? '',
-          confidence: result.confidence_score,
-        })
-      },
-      onViewFile: (fileId: string) => {
-        setSelectedCell({
-          reviewId,
-          fileId,
-          columnId: '',
-          value: null,
-          sourceRef: '',
-          confidence: null,
-        })
-      }
-    })
-  }, [columns, getRealTimeUpdates, getProcessingCells, reviewId])
+// Update the table columns creation
+const tableColumns = useMemo(() => {
+  if (!columns.length) return []
+  
+  return createColumns({
+    columns: columns as unknown as GlobalReviewColumn[],
+    realTimeUpdates: getRealTimeUpdates() as GlobalRealTimeUpdates,
+    processingCells: getProcessingCells(),
+    onCellClick: (fileId: string, columnId: string, result: GlobalReviewResult) => {
+      setSelectedCell({
+        reviewId,
+        fileId,
+        columnId,
+        value: result.extracted_value,
+        longValue: result.long, 
+        sourceRef: result.source_reference ?? '',
+        confidence: result.confidence_score,
+      })
+    },
+    onViewFile: (fileId: string) => {
+      setSelectedCell({
+        reviewId,
+        fileId,
+        columnId: '',
+        value: null,
+        longValue: null,
+        sourceRef: '',
+        confidence: null,
+      })
+    }
+  })
+}, [columns, getRealTimeUpdates, getProcessingCells, reviewId])
   
   // Loading state
   if (loading) {
@@ -663,7 +681,6 @@ export default function RealTimeReviewTable({
         onFilesAdded={onFilesAdded}
         onColumnAdded={onColumnAdded}
         totalFiles={files.length}
-        totalColumns={columns.length}
         completionPercentage={completionPercentage}
         reviewColumns={columns.map(col => ({
           id: col.id,

@@ -7,8 +7,7 @@ import {
   ArrowLeft, 
   FileText, 
   AlertCircle, 
-  CheckCircle, 
-  Download
+  CheckCircle
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RealTimeReviewTable from '@/components/review-table/RealTimeReviewtable'
@@ -199,98 +198,7 @@ export default function ReviewDetailPage() {
     addToast('success', 'Column added successfully!')
   }, [addToast])
   
-  // Handle export with error handling
-  const handleExport = useCallback(async () => {
-    if (!reviewId) {
-      addToast('error', 'No review ID available to export')
-      return
-    }
-    try {
-      // Fetch columns
-      const { data: columnsData, error: columnsError } = await supabase
-        .from('tabular_review_columns')
-        .select('*')
-        .eq('review_id', reviewId)
-        .order('column_order')
-      if (columnsError) throw columnsError
-      
-      // Fetch files with file details
-      const { data: filesData, error: filesError } = await supabase
-        .from('tabular_review_files')
-        .select(`
-          *,
-          files (
-            original_filename,
-            file_size,
-            status
-          )
-        `)
-        .eq('review_id', reviewId)
-      if (filesError) throw filesError
-      
-      // Transform files data
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const transformedFiles = (filesData || []).map((file: any) => ({
-        id: file.id,
-        file_id: file.file_id,
-        filename: file.files?.original_filename ?? '',
-        file_size: file.files?.file_size ?? 0,
-        status: file.files?.status ?? '',
-        added_at: file.added_at ?? ''
-      }))
-      
-      // Fetch results
-      const { data: resultsData, error: resultsError } = await supabase
-        .from('tabular_review_results')
-        .select('*')
-        .eq('review_id', reviewId)
-      if (resultsError) throw resultsError
-      
-      // Build a lookup for results
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const resultMap = new Map<string, any>()
-      resultsData?.forEach(result => {
-        resultMap.set(`${result.file_id}:${result.column_id}`, result)
-      })
-      
-      // Build CSV headers
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const headers = ['Document', ...columnsData.map((c: any) => c.column_name)]
-      
-      // Build CSV rows
-      const rows = transformedFiles.map(file => {
-        const row = [file.filename]
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        columnsData.forEach((column: any) => {
-          const result = resultMap.get(`${file.file_id}:${column.id}`)
-          row.push(result?.extracted_value ?? '')
-        })
-        return row
-      })
-      
-      // Create CSV
-      const csv = [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-      ].join('\n')
-      
-      // Download
-      const blob = new Blob([csv], { type: 'text/csv' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `review_${reviewId}_${Date.now()}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      
-      addToast('success', 'Data exported successfully!')
-    } catch (error) {
-      console.error('Export error:', error)
-      addToast('error', 'Failed to export data')
-    }
-  }, [reviewId, supabase, addToast])
+  // Export functionality removed
   
   // Modal handlers no longer needed - handled by DataTable
   
@@ -324,16 +232,7 @@ export default function ReviewDetailPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={handleExport}
-                disabled={existingFiles.length === 0}
-                className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download className="h-4 w-4" />
-                Export Data
-              </button>
-            </div>
+            {/* Export button removed */}
           </div>
           
           {/* Action buttons moved to DataTable toolbar */}
