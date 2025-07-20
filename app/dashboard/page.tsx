@@ -15,7 +15,6 @@ import {
 import { 
   Sparkles,
   FolderOpen,
-  Upload,
   Activity,
   FileText,
   Folder
@@ -245,23 +244,15 @@ export default function DashboardPage() {
                 <div className="text-gray-600">Documents</div>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => router.push('/documents')}
-                variant="outline"
-                className="flex-1"
-              >
-                <Folder className="h-4 w-4 mr-2" />
-                Browse
-              </Button>
-              <Button 
-                onClick={() => router.push('/upload')}
-                className="flex-1 bg-green-600 hover:bg-green-700"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Upload
-              </Button>
-            </div>
+            <Button 
+              onClick={() => router.push('/documents')}
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+              size="lg"
+            >
+              <Folder className="h-5 w-5 mr-2" />
+Browse Your Documents     
+ </Button>
+           
           </CardContent>
         </Card>
       </div>
