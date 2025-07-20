@@ -197,7 +197,7 @@ class AuthService {
   // These methods are kept for compatibility but delegate to cookie-based system
   async getTokens(): Promise<AuthTokens | null> {
     const accessToken = await this.getAccessToken();
-    return accessToken ? { accessToken } : null;
+    return accessToken ? { access_token: accessToken, refresh_token: '' } : null;
   }
 
   saveTokens(tokens: AuthTokens): void {
@@ -211,8 +211,8 @@ class AuthService {
   }
 
   isTokenExpired(tokens: AuthTokens): boolean {
-    if (!tokens.expiresAt) return false;
-    return Date.now() >= tokens.expiresAt;
+    if (!tokens.expires_at) return false;
+    return Date.now() >= tokens.expires_at;
   }
 
   // Cross-tab synchronization (less relevant with httpOnly cookies)
