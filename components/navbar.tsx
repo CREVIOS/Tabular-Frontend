@@ -113,10 +113,10 @@ export default function Navbar({
           <div className="flex items-center space-x-2 sm:space-x-3">
          
             <Image 
-              src="/logo wide black transparant.svg"
+              src="/logo.svg"
               alt="Makebell Logo" 
               width={90} 
-              height={24}
+              height={15}
               className="h-6 w-auto"
             />
             <span className="text-gray-400">|</span>
