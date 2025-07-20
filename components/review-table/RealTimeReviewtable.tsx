@@ -118,7 +118,7 @@ const useCellDataStore = () => {
   return { updateCell, getCellData, getAllCellData, getRealTimeUpdates, getProcessingCells }
 }
   
- 
+
 const CompletionStats = memo(({ 
   totalCells, 
   getAllCellData 
@@ -453,7 +453,7 @@ export default function RealTimeReviewTable({
       )
       .subscribe()
 
-      const resultsChannel = supabase
+    const resultsChannel = supabase
       .channel(`results-${reviewId}`)
       .on(
         'postgres_changes',
@@ -532,7 +532,7 @@ export default function RealTimeReviewTable({
       created_at: new Date(partial.timestamp).toISOString(),
       updated_at: new Date(partial.timestamp).toISOString(),
     } as GlobalReviewResult)
-  
+
     return files.map(file => {
       const resultsForFile: Record<string, GlobalReviewResult | null> = {}
       
@@ -581,37 +581,37 @@ export default function RealTimeReviewTable({
 
   // Create table columns
 // Update the table columns creation
-const tableColumns = useMemo(() => {
-  if (!columns.length) return []
-  
-  return createColumns({
-    columns: columns as unknown as GlobalReviewColumn[],
-    realTimeUpdates: getRealTimeUpdates() as GlobalRealTimeUpdates,
-    processingCells: getProcessingCells(),
-    onCellClick: (fileId: string, columnId: string, result: GlobalReviewResult) => {
-      setSelectedCell({
-        reviewId,
-        fileId,
-        columnId,
-        value: result.extracted_value,
+  const tableColumns = useMemo(() => {
+    if (!columns.length) return []
+    
+    return createColumns({
+      columns: columns as unknown as GlobalReviewColumn[],
+      realTimeUpdates: getRealTimeUpdates() as GlobalRealTimeUpdates,
+      processingCells: getProcessingCells(),
+      onCellClick: (fileId: string, columnId: string, result: GlobalReviewResult) => {
+        setSelectedCell({
+          reviewId,
+          fileId,
+          columnId,
+          value: result.extracted_value,
         longValue: result.long, 
-        sourceRef: result.source_reference ?? '',
-        confidence: result.confidence_score,
-      })
-    },
-    onViewFile: (fileId: string) => {
-      setSelectedCell({
-        reviewId,
-        fileId,
-        columnId: '',
-        value: null,
+          sourceRef: result.source_reference ?? '',
+          confidence: result.confidence_score,
+        })
+      },
+      onViewFile: (fileId: string) => {
+        setSelectedCell({
+          reviewId,
+          fileId,
+          columnId: '',
+          value: null,
         longValue: null,
-        sourceRef: '',
-        confidence: null,
-      })
-    }
-  })
-}, [columns, getRealTimeUpdates, getProcessingCells, reviewId])
+          sourceRef: '',
+          confidence: null,
+        })
+      }
+    })
+  }, [columns, getRealTimeUpdates, getProcessingCells, reviewId])
   
   // Loading state
   if (loading) {

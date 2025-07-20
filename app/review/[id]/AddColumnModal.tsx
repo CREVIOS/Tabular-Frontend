@@ -123,9 +123,9 @@ export default function AddColumnModal({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      column_name: '',
-      prompt: '',
-      data_type: 'text'
+    column_name: '',
+    prompt: '',
+    data_type: 'text'
     }
   })
 
@@ -150,7 +150,7 @@ export default function AddColumnModal({
     }
     return true
   }
-
+  
   // Handle example selection
   const handleExampleSelect = (example: typeof EXAMPLE_PROMPTS[0]) => {
     form.setValue('column_name', example.name)
@@ -158,7 +158,7 @@ export default function AddColumnModal({
     form.setValue('data_type', example.type)
     setShowExamples(false)
   }
-
+  
   // Handle form submission
   const onSubmit = async (data: FormData) => {
     setLocalError(null)
@@ -216,7 +216,7 @@ export default function AddColumnModal({
       setLocalError(error instanceof Error ? error.message : 'Failed to add column')
     }
   }
-
+  
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -226,7 +226,7 @@ export default function AddColumnModal({
             Create a new column to extract specific data from your documents.
           </DialogDescription>
         </DialogHeader>
-
+        
         {/* Success/Error Alerts */}
         {success && (
           <Alert className="border-green-200 bg-green-50">
@@ -236,14 +236,14 @@ export default function AddColumnModal({
             </AlertDescription>
           </Alert>
         )}
-
+        
         {localError && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{localError}</AlertDescription>
           </Alert>
         )}
-
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Example Templates */}
@@ -259,11 +259,11 @@ export default function AddColumnModal({
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {EXAMPLE_PROMPTS.map((example, index) => (
+                  {EXAMPLE_PROMPTS.map((example, index) => (
                       <div 
-                        key={index}
+                      key={index}
                         className="cursor-pointer hover:bg-gray-50 p-2 rounded border text-xs"
-                        onClick={() => handleExampleSelect(example)}
+                      onClick={() => handleExampleSelect(example)}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -275,12 +275,12 @@ export default function AddColumnModal({
                           </Badge>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                  ))}
+                </div>
                 </CollapsibleContent>
-              </div>
+            </div>
             </Collapsible>
-
+            
             {/* Column Name and Data Type - Side by Side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
@@ -319,7 +319,7 @@ export default function AddColumnModal({
                       <SelectContent>
                         {DATA_TYPE_OPTIONS.map(option => (
                           <SelectItem key={option.value} value={option.value}>
-                            <div>
+            <div>
                               <div className="font-medium">{option.label}</div>
                               <div className="text-xs text-muted-foreground">{option.description}</div>
                             </div>
@@ -332,7 +332,7 @@ export default function AddColumnModal({
                 )}
               />
             </div>
-
+            
             {/* Analysis Prompt Field */}
             <FormField
               control={form.control}
@@ -345,7 +345,7 @@ export default function AddColumnModal({
                       placeholder="Describe exactly what information you want to extract from each document. Be specific and clear about what to look for..."
                       className="min-h-[100px] focus:ring-2 focus:ring-blue-500 resize-none"
                       {...field}
-                    />
+              />
                   </FormControl>
                   <FormDescription className="text-xs">
                     {field.value?.length || 0}/500 characters
@@ -356,32 +356,32 @@ export default function AddColumnModal({
             />
           </form>
         </Form>
-
+        
         <DialogFooter className="gap-2">
           <Button
-            type="button"
+              type="button"
             variant="outline"
-            onClick={onClose}
+              onClick={onClose}
             disabled={isSubmitting}
-          >
-            Cancel
+            >
+              Cancel
           </Button>
           <Button
             onClick={form.handleSubmit(onSubmit)}
             disabled={isSubmitting}
             className="min-w-[120px]"
-          >
+            >
             {isSubmitting ? (
-              <>
+                <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Creating...
-              </>
-            ) : (
-              <>
+                  Creating...
+                </>
+              ) : (
+                <>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Column
-              </>
-            )}
+                  Add Column
+                </>
+              )}
           </Button>
         </DialogFooter>
       </DialogContent>

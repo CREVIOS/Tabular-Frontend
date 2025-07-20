@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Eye, EyeOff, Mail, Lock, Shield, AlertCircle, Loader2, CheckCircle } from "lucide-react"
@@ -15,6 +15,21 @@ import { loginSchema, LoginFormValues } from "@/schemas/login"
 import { loginUser } from "@/app/(auth)/actions/login-action"
 import { useRouter } from "next/navigation"
 
+// Client-side only component to prevent hydration issues
+const ClientOnly = ({ children }: { children: React.ReactNode }) => {
+  const [hasMounted, setHasMounted] = useState(false)
+  
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
+  
+  if (!hasMounted) {
+    return null
+  }
+  
+  return <>{children}</>
+}
+
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
@@ -24,20 +39,23 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [attemptCount, setAttemptCount] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('login_attempt_count');
-      return stored ? parseInt(stored, 10) : 0;
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [lockoutTime, setLockoutTime] = useState<number | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Initialize client-side state after mount to prevent hydration issues
+  useEffect(() => {
+    setIsClient(true);
+    const storedAttempts = localStorage.getItem('login_attempt_count');
+    const storedLockout = localStorage.getItem('login_lockout_time');
+    
+    if (storedAttempts) {
+      setAttemptCount(parseInt(storedAttempts, 10));
     }
-    return 0;
-  });
-  const [lockoutTime, setLockoutTime] = useState<number | null>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('login_lockout_time');
-      return stored ? parseInt(stored, 10) : null;
+    if (storedLockout) {
+      setLockoutTime(parseInt(storedLockout, 10));
     }
-    return null;
-  });
+  }, []);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -49,18 +67,18 @@ export function LoginForm() {
 
   // Pre-fill email if user was remembered
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (isClient) {
       const rememberedEmail = localStorage.getItem('remember_user')
       if (rememberedEmail) {
         form.setValue('email', rememberedEmail)
         setRememberMe(true)
       }
     }
-  }, [form])
+  }, [form, isClient])
 
   // Effect to persist attemptCount and lockoutTime
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (isClient) {
       localStorage.setItem('login_attempt_count', attemptCount.toString());
       if (lockoutTime) {
         localStorage.setItem('login_lockout_time', lockoutTime.toString());
@@ -68,7 +86,7 @@ export function LoginForm() {
         localStorage.removeItem('login_lockout_time');
       }
     }
-  }, [attemptCount, lockoutTime]);
+  }, [attemptCount, lockoutTime, isClient]);
 
   // Effect to check and reset lockout after LOCKOUT_MINUTES
   React.useEffect(() => {
@@ -115,9 +133,9 @@ export function LoginForm() {
         return
       }
       // Handle remember me functionality
-      if (rememberMe && typeof window !== 'undefined') {
+      if (rememberMe && isClient) {
         localStorage.setItem('remember_user', values.email.trim().toLowerCase())
-      } else if (typeof window !== 'undefined') {
+      } else if (isClient) {
         localStorage.removeItem('remember_user')
       }
       setAttemptCount(0)
@@ -156,34 +174,38 @@ export function LoginForm() {
       </div>
 
       {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <div className="flex flex-col gap-1">
-              <span>{error}</span>
-              {attemptCount > 0 && attemptCount < MAX_ATTEMPTS && (
-                <span className="text-xs font-medium">
-                  {getRemainingAttempts()} attempt{getRemainingAttempts() !== 1 ? 's' : ''} remaining
-                </span>
-              )}
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
+      <ClientOnly>
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="flex flex-col gap-1">
+                <span>{error}</span>
+                {attemptCount > 0 && attemptCount < MAX_ATTEMPTS && (
+                  <span className="text-xs font-medium">
+                    {getRemainingAttempts()} attempt{getRemainingAttempts() !== 1 ? 's' : ''} remaining
+                  </span>
+                )}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+      </ClientOnly>
 
       {/* Success Message for Demo */}
-      {attemptCount === 0 && !error && !isSubmitting && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            <div className="flex flex-col gap-1">
-              <span className="font-medium">Welcome back!</span>
-              <span className="text-sm">Enter your credentials to access your secure dashboard.</span>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
+      <ClientOnly>
+        {attemptCount === 0 && !error && !isSubmitting && isClient && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              <div className="flex flex-col gap-1">
+                <span className="font-medium">Welcome back!</span>
+                <span className="text-sm">Enter your credentials to access your secure dashboard.</span>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+      </ClientOnly>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -288,33 +310,37 @@ export function LoginForm() {
       </Form>
 
       {/* Rate Limit Warning */}
-      {attemptCount > 2 && attemptCount < MAX_ATTEMPTS && (
-        <Alert className="border-yellow-200 bg-yellow-50">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-yellow-800">
-            <span className="font-medium">Security Notice:</span> You have {getRemainingAttempts()} login attempt{getRemainingAttempts() !== 1 ? 's' : ''} remaining before your account is temporarily locked.
-          </AlertDescription>
-        </Alert>
-      )}
+      <ClientOnly>
+        {attemptCount > 2 && attemptCount < MAX_ATTEMPTS && (
+          <Alert className="border-yellow-200 bg-yellow-50">
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800">
+              <span className="font-medium">Security Notice:</span> You have {getRemainingAttempts()} login attempt{getRemainingAttempts() !== 1 ? 's' : ''} remaining before your account is temporarily locked.
+            </AlertDescription>
+          </Alert>
+        )}
+      </ClientOnly>
 
       {/* Account Lockout */}
-      {lockoutTime && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <div className="flex flex-col gap-2">
-              <span className="font-medium">Account Temporarily Locked</span>
-              <span className="text-sm">
-                For security reasons, this account has been temporarily locked due to multiple failed login attempts.<br />
-                Please wait {LOCKOUT_MINUTES} minutes before trying again, or {" "}
-                <Link href="/forgot-password" className="underline font-medium">
-                  reset your password
-                </Link>.
-              </span>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
+      <ClientOnly>
+        {lockoutTime && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="flex flex-col gap-2">
+                <span className="font-medium">Account Temporarily Locked</span>
+                <span className="text-sm">
+                  For security reasons, this account has been temporarily locked due to multiple failed login attempts.<br />
+                  Please wait {LOCKOUT_MINUTES} minutes before trying again, or {" "}
+                  <Link href="/forgot-password" className="underline font-medium">
+                    reset your password
+                  </Link>.
+                </span>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+      </ClientOnly>
 
       {/* Register Link */}
       {/* <div className="text-center pt-4 border-t border-gray-200">
