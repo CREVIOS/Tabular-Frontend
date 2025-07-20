@@ -3,8 +3,6 @@
 import * as React from "react"
 import {
   BarChart3,
-  LogOut,
-  User,
   Table,
   Shield,
   FolderOpen,
@@ -16,7 +14,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Badge } from "@/components/ui/badge"
 import { File, Review } from "@/types"
@@ -146,7 +144,6 @@ export function SidebarTrigger({ className }: { className?: string }) {
 }
 
 export function Sidebar({ className }: SidebarProps) {
-  const router = useRouter()
   const pathname = usePathname()
   const { isCollapsed, isMobileOpen, toggleCollapsed, closeMobile } = useSidebar()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -223,12 +220,7 @@ export function Sidebar({ className }: SidebarProps) {
     }
   }, [])
 
-  const handleLogout = async () => {
-    console.log('Logging out...')
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
+
 
 
   const isActiveRoute = (href: string) => {
