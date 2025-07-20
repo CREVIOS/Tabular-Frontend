@@ -99,7 +99,7 @@ async function refreshTokens(refreshToken: string) {
 }
 
 // Function to check if user exists in Supabase and create if needed
-async function handleSupabaseUser(supabase: SupabaseClient, externalUser: ExternalUser) {
+async function handleSupabaseUser(supabase: SupabaseClient, externalUser: ExternalUser, hasSupabaseSession: boolean) {
   try {
     const email = externalUser.email || externalUser.user?.email;
     const userId = externalUser.id || externalUser.user?.id || externalUser.user_id;
@@ -124,13 +124,39 @@ async function handleSupabaseUser(supabase: SupabaseClient, externalUser: Extern
     if (existingUser) {
       console.log(`[Middleware] User exists in Supabase: ${existingUser.id}`);
       
-      // Don't re-issue magic link for existing user - just return success
-      return { 
-        success: true, 
-        user: existingUser, 
-        magicLink: null, // No magic link needed for existing users
-        isNewUser: false 
-      };
+      // ✅ FIXED: Generate magic link if user exists but has no active session
+      if (!hasSupabaseSession) {
+        console.log(`[Middleware] User exists but no active session, generating magic link`);
+        
+        // Generate magic link for existing user to establish session
+        const { data: magicLinkData, error: magicLinkError } = await supabase.auth.admin.generateLink({
+          type: 'magiclink',
+          email: email,
+          options: {
+            redirectTo: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+          }
+        });
+
+        if (magicLinkError) {
+          console.error('[Middleware] Error generating magic link for existing user:', magicLinkError);
+          return { success: false, error: magicLinkError.message };
+        }
+
+        return { 
+          success: true, 
+          user: existingUser, 
+          magicLink: magicLinkData.properties?.action_link,
+          isNewUser: false 
+        };
+      } else {
+        // User has active session, no magic link needed
+        return { 
+          success: true, 
+          user: existingUser, 
+          magicLink: null,
+          isNewUser: false 
+        };
+      }
     } else {
       console.log(`[Middleware] Creating new user in Supabase for email: ${email}`);
       
@@ -343,10 +369,11 @@ export async function middleware(request: NextRequest) {
         externalAuthValid = true;
         externalUser = verification.user;
 
-        // Only handle Supabase user creation/login if we DON'T have a Supabase session yet and have service role key
-        if (!supabaseUser && externalUser && (externalUser.email || externalUser.user?.email) && supabase) {
-          console.log(`[Middleware:${requestId}] No Supabase session found, handling user creation/login`);
-          const supabaseUserResult = await handleSupabaseUser(supabase, externalUser);
+        // ✅ FIXED: Pass hasSupabaseSession to handleSupabaseUser
+        // Only handle Supabase user creation/login if we have service role key
+        if (externalUser && (externalUser.email || externalUser.user?.email) && supabase) {
+          console.log(`[Middleware:${requestId}] Handling Supabase user (has session: ${!!supabaseUser})`);
+          const supabaseUserResult = await handleSupabaseUser(supabase, externalUser, !!supabaseUser);
           
           if (supabaseUserResult.success && supabaseUserResult.magicLink) {
             console.log(`[Middleware:${requestId}] Supabase user handled successfully, redirecting to magic link`);
@@ -372,15 +399,10 @@ export async function middleware(request: NextRequest) {
               return NextResponse.redirect(verifyUrl);
             }
           } else if (supabaseUserResult.success && !supabaseUserResult.magicLink) {
-            console.log(`[Middleware:${requestId}] User exists in Supabase, no magic link needed`);
-            // User exists but no session - this shouldn't happen normally
-            // Alternative: implement session reuse with supabase.auth.setSession({ access_token, refresh_token })
-            // if you have the user's Supabase tokens stored elsewhere
+            console.log(`[Middleware:${requestId}] User has active Supabase session, no magic link needed`);
           } else if (!supabaseUserResult.success) {
             console.error(`[Middleware:${requestId}] Failed to handle Supabase user:`, supabaseUserResult.error);
           }
-        } else if (supabaseUser) {
-          console.log(`[Middleware:${requestId}] Supabase session already exists, skipping user handling`);
         }
       } else {
         console.log(`[Middleware:${requestId}] External access token invalid, attempting refresh`);
@@ -413,10 +435,10 @@ export async function middleware(request: NextRequest) {
               externalAuthValid = true;
               externalUser = newVerification.user;
               
-              // Only handle Supabase user creation/login if we DON'T have a Supabase session yet and have service role key
-              if (!supabaseUser && externalUser && (externalUser.email || externalUser.user?.email) && supabase) {
-                console.log(`[Middleware:${requestId}] No Supabase session after refresh, handling user creation/login`);
-                const supabaseUserResult = await handleSupabaseUser(supabase, externalUser);
+              // ✅ FIXED: Pass hasSupabaseSession to handleSupabaseUser after refresh
+              if (externalUser && (externalUser.email || externalUser.user?.email) && supabase) {
+                console.log(`[Middleware:${requestId}] Handling Supabase user after refresh (has session: ${!!supabaseUser})`);
+                const supabaseUserResult = await handleSupabaseUser(supabase, externalUser, !!supabaseUser);
                 
                 if (supabaseUserResult.success && supabaseUserResult.magicLink) {
                   console.log(`[Middleware:${requestId}] Supabase user handled after refresh, redirecting to magic link`);
@@ -439,10 +461,8 @@ export async function middleware(request: NextRequest) {
                     return NextResponse.redirect(verifyUrl);
                   }
                 } else if (supabaseUserResult.success && !supabaseUserResult.magicLink) {
-                  console.log(`[Middleware:${requestId}] User exists in Supabase after refresh, no magic link needed`);
+                  console.log(`[Middleware:${requestId}] User has active Supabase session after refresh, no magic link needed`);
                 }
-              } else if (supabaseUser) {
-                console.log(`[Middleware:${requestId}] Supabase session already exists after refresh, skipping user handling`);
               }
             }
           }
