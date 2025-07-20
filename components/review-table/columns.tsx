@@ -79,6 +79,12 @@ function truncateToWords(text: string, maxWords: number = 4): string {
   return words.slice(0, maxWords).join(' ') + '...'
 }
 
+// Helper function to truncate text to 2-3 lines (approximately 60-90 characters)
+function truncateToLines(text: string, maxChars: number = 90): string {
+  if (text.length <= maxChars) return text
+  return text.slice(0, maxChars) + '...'
+}
+
 export function createColumns({
   columns,
   realTimeUpdates,
@@ -194,8 +200,9 @@ export function createColumns({
         />
       ),
       meta: { className: "w-48" },
-      size: 192,
-      minSize: 160,
+      size: 200,
+      minSize: 200,
+      maxSize: 250,
       cell: ({ row }) => {
         const file   = row.original.file
         const key    = `${file.file_id}-${col.id}`
@@ -228,43 +235,53 @@ export function createColumns({
             </CenteredBox>
           )
       
-if (!res?.extracted_value)
-  return (
-    <div className="w-full p-3">
-      {!res ? (
-        // Show skeleton when no result exists yet (initial loading)
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-3 w-2/3" />
-        </div>
-      ) : (
-        // Show "No data" only when processing is complete but no value found
-        <CenteredBox>
-          <span className="text-[11px] text-muted-foreground">No data</span>
-        </CenteredBox>
-      )}
-    </div>
-  )
+        if (!res?.extracted_value)
+          return (
+            <div className="w-full p-3">
+              {!res ? (
+                // Show skeleton when no result exists yet (initial loading)
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              ) : (
+                // Show "No data" only when processing is complete but no value found
+                <CenteredBox>
+                  <span className="text-[11px] text-muted-foreground">No data</span>
+                </CenteredBox>
+              )}
+            </div>
+          )
       
-        /* ---- success ---- */
+        /* ---- success with 2-3 line wrapping ---- */
         console.log('✅ Rendering data for:', key, res.extracted_value)
         const confidence = Math.round((res.confidence_score || 0) * 100)
         
-        // Truncate text to ~4 words max
+        // Use full text with line truncation instead of word truncation
         const fullText = res.extracted_value || ''
-        const displayText = truncateToWords(fullText, 4)
+        const displayText = truncateToLines(fullText, 90)
       
         return (
           <div
-            className={`group relative w-full rounded border border-transparent p-3 hover:border-blue-200 hover:bg-muted/30 transition-all duration-200 cursor-pointer
+            className={`group relative w-full rounded border border-transparent p-3 hover:border-blue-200 hover:bg-muted/30 transition-all duration-200 cursor-pointer min-h-[70px]
                         ${updated ? "border-green-300 bg-green-50 shadow-sm" : ""}`}
             onClick={handleCellClick}
             title={`${fullText}\nConfidence: ${confidence}%${
               res.source_reference ? `\nSource: ${res.source_reference}` : ""
             }`}
           >
-            <div className="text-[13px] leading-relaxed text-left w-full min-h-[20px]">
-              <div className="truncate">
+            <div className="text-[13px] leading-relaxed text-left w-full">
+              <div 
+                className="break-words hyphens-auto"
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  lineHeight: '1.4',
+                  maxHeight: '4.2em' // 3 lines * 1.4 line-height
+                }}
+              >
                 {displayText}
               </div>
             </div>
