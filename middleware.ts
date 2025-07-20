@@ -1,11 +1,214 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Type definitions
+interface ExternalUser {
+  id?: string;
+  user_id?: string;
+  email?: string;
+  name?: string;
+  avatar_url?: string;
+  user?: {
+    id?: string;
+    email?: string;
+    name?: string;
+    avatar_url?: string;
+  };
+}
+
+interface SupabaseClient {
+  auth: {
+    admin: {
+      listUsers: () => Promise<{ 
+        data: { users: Array<{ id: string; email: string }> }; 
+        error: Error | null 
+      }>;
+      createUser: (userData: {
+        email: string;
+        email_confirm: boolean;
+        user_metadata: Record<string, unknown>;
+      }) => Promise<{ 
+        data: { user: { id: string; email: string } }; 
+        error: Error | null 
+      }>;
+      generateLink: (linkData: {
+        type: string;
+        email: string;
+        options: { redirectTo: string };
+      }) => Promise<{ 
+        data: { properties?: { action_link?: string } }; 
+        error: Error | null 
+      }>;
+    };
+  };
+}
+
+// Function to verify access token with external auth service
+async function verifyAccessToken(accessToken: string) {
+  try {
+    const response = await fetch('https://makebell-supabase.onrender.com/api/auth/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        access_token: accessToken
+      })
+    });
+
+    if (!response.ok) {
+      return { valid: false };
+    }
+
+    const data = await response.json();
+    return { valid: data.valid || true, user: data.user || data };
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    return { valid: false };
+  }
+}
+
+// Function to refresh tokens with external auth service
+async function refreshTokens(refreshToken: string) {
+  try {
+    const response = await fetch('https://makebell-supabase.onrender.com/api/auth/refresh', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        refresh_token: refreshToken
+      })
+    });
+
+    if (!response.ok) {
+      return { success: false };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token
+    };
+  } catch (error) {
+    console.error('Token refresh failed:', error);
+    return { success: false };
+  }
+}
+
+// Function to check if user exists in Supabase and create if needed
+async function handleSupabaseUser(supabase: SupabaseClient, externalUser: ExternalUser) {
+  try {
+    const email = externalUser.email || externalUser.user?.email;
+    const userId = externalUser.id || externalUser.user?.id || externalUser.user_id;
+    
+    if (!email) {
+      console.error('[Middleware] No email found in external user data');
+      return { success: false, error: 'No email found' };
+    }
+
+    console.log(`[Middleware] Checking for user with email: ${email}`);
+
+    // Check if user exists in Supabase auth
+    const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('[Middleware] Error listing users:', listError);
+      return { success: false, error: listError.message };
+    }
+
+    const existingUser = existingUsers.users.find((user: { id: string; email: string }) => user.email === email);
+
+    if (existingUser) {
+      console.log(`[Middleware] User exists in Supabase: ${existingUser.id}`);
+      
+      // Don't re-issue magic link for existing user - just return success
+      return { 
+        success: true, 
+        user: existingUser, 
+        magicLink: null, // No magic link needed for existing users
+        isNewUser: false 
+      };
+    } else {
+      console.log(`[Middleware] Creating new user in Supabase for email: ${email}`);
+      
+      // Create new user in Supabase
+      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email: email,
+        email_confirm: true, // Mark email as verified
+        user_metadata: {
+          external_user_id: userId,
+          external_auth: true,
+          name: externalUser.name || externalUser.user?.name,
+          avatar_url: externalUser.avatar_url || externalUser.user?.avatar_url
+        }
+      });
+
+      if (createError) {
+        console.error('[Middleware] Error creating user:', createError);
+        return { success: false, error: createError.message };
+      }
+
+      console.log(`[Middleware] Successfully created user: ${newUser.user.id}`);
+
+      // Generate magic link for new user
+      const { data: magicLinkData, error: magicLinkError } = await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email: email,
+        options: {
+          redirectTo: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+        }
+      });
+
+      if (magicLinkError) {
+        console.error('[Middleware] Error generating magic link for new user:', magicLinkError);
+        return { success: false, error: magicLinkError.message };
+      }
+
+      return { 
+        success: true, 
+        user: newUser.user, 
+        magicLink: magicLinkData.properties?.action_link,
+        isNewUser: true 
+      };
+    }
+  } catch (error) {
+    console.error('[Middleware] Error in handleSupabaseUser:', error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+// Get the appropriate base URL based on environment
+function getBaseUrl() {
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
+  }
+  return process.env.NEXT_PUBLIC_BASE_URL;
+}
+
 export async function middleware(request: NextRequest) {
-  // Skip middleware for static files, API routes, and assets
+  const { searchParams, pathname } = request.nextUrl;
+  
+  // Generate unique request ID for traceability
+  const requestId = Math.random().toString(36).substring(2, 8);
+  
+  // Debug logging
+  console.log(`[Middleware:${requestId}] Processing request for: ${pathname}`);
+  console.log(`[Middleware:${requestId}] Request URL: ${request.url}`);
+
+  // Path guard - skip auth confirm routes completely
+  if (pathname.startsWith('/auth/confirm')) {
+    console.log(`[Middleware:${requestId}] Skipping auth/confirm route`);
+    return NextResponse.next();
+  }
+
+  // Skip middleware for static files, API routes, auth routes, and assets
   if (
     request.nextUrl.pathname.startsWith('/_next/') ||
     request.nextUrl.pathname.startsWith('/api/') ||
+    request.nextUrl.pathname.startsWith('/auth/') ||  // Skip all auth routes
     request.nextUrl.pathname.startsWith('/.well-known/') ||
     request.nextUrl.pathname === '/site.webmanifest' ||
     request.nextUrl.pathname === '/manifest.json' ||
@@ -15,14 +218,49 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // Check for tokens in query parameters first (from auth redirect)
+  const accessTokenFromQuery = searchParams.get('access_token');
+  const refreshTokenFromQuery = searchParams.get('refresh_token');
+  
+  // If tokens are in query params, store them in cookies and redirect to clean URL
+  if (accessTokenFromQuery && refreshTokenFromQuery) {
+    console.log(`[Middleware:${requestId}] Found tokens in query params, storing in cookies`);
+    const response = NextResponse.redirect(new URL(pathname, getBaseUrl()));
+    
+    // Set cookies with the tokens
+    response.cookies.set('access_token', accessTokenFromQuery, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7 // 7 days
+    });
+    
+    response.cookies.set('refresh_token', refreshTokenFromQuery, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30 // 30 days
+    });
+    
+    return response;
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
 
   try {
-    const supabase = createServerClient(
+    // Check if service role key is available for admin operations
+    const serviceRoleKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!serviceRoleKey) {
+      console.log(`[Middleware:${requestId}] Warning: SUPABASE_SERVICE_ROLE_KEY not available. Admin operations will be skipped.`);
+    }
+    
+    // Initialize Supabase client with service role for admin operations (if available)
+    const supabase = serviceRoleKey ? createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      serviceRoleKey,
       {
         cookies: {
           getAll() {
@@ -48,13 +286,36 @@ export async function middleware(request: NextRequest) {
           },
         },
       }
+    ) as unknown as SupabaseClient : null;
+
+    // Also create regular client for user operations
+    const supabaseUserClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll() {
+            // No-op for user client in middleware
+          },
+        },
+      }
     )
 
-    // Get current session
+    // Get current session from Supabase
     const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
+      data: { user: supabaseUser },
+      error: supabaseError,
+    } = await supabaseUserClient.auth.getUser()
+
+    // Get tokens from cookies for external auth service
+    const accessToken = request.cookies.get('access_token')?.value;
+    const refreshToken = request.cookies.get('refresh_token')?.value;
+    
+    console.log(`[Middleware:${requestId}] Access token exists: ${!!accessToken}, Refresh token exists: ${!!refreshToken}`);
+    console.log(`[Middleware:${requestId}] Supabase user exists: ${!!supabaseUser}, Supabase error: ${!!supabaseError}`);
 
     // Define public routes (root '/' now requires authentication)
     const publicRoutes = [
@@ -69,41 +330,200 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith(route + '/')
     )
 
-    // If there's an auth error or no user, handle authentication
-    if (error || !user) {
-      // If accessing a protected route, redirect to login
-      if (!isPublicRoute) {
-        const loginUrl = new URL('/login', request.url)
-        loginUrl.searchParams.set('redirectTo', request.nextUrl.pathname + request.nextUrl.search)
-        return NextResponse.redirect(loginUrl)
+    // Check external auth service first
+    let externalAuthValid = false;
+    let externalUser = null;
+
+    if (accessToken) {
+      console.log(`[Middleware:${requestId}] Verifying access token with external service`);
+      const verification = await verifyAccessToken(accessToken);
+      
+      if (verification.valid) {
+        console.log(`[Middleware:${requestId}] External access token valid`);
+        externalAuthValid = true;
+        externalUser = verification.user;
+
+        // Only handle Supabase user creation/login if we DON'T have a Supabase session yet and have service role key
+        if (!supabaseUser && externalUser && (externalUser.email || externalUser.user?.email) && supabase) {
+          console.log(`[Middleware:${requestId}] No Supabase session found, handling user creation/login`);
+          const supabaseUserResult = await handleSupabaseUser(supabase, externalUser);
+          
+          if (supabaseUserResult.success && supabaseUserResult.magicLink) {
+            console.log(`[Middleware:${requestId}] Supabase user handled successfully, redirecting to magic link`);
+            
+            // Extract the verification token from the magic link
+            const magicLinkUrl = new URL(supabaseUserResult.magicLink);
+            const token = magicLinkUrl.searchParams.get('token');
+            const type = magicLinkUrl.searchParams.get('type');
+            
+            if (token && type) {
+              // Redirect to magic link verification - avoid setting next to auth/confirm to prevent loops
+              const verifyUrl = new URL('/auth/confirm', request.url);
+              verifyUrl.searchParams.set('token', token);
+              verifyUrl.searchParams.set('type', type);
+              
+              // Set next to dashboard or the original intended destination
+              const nextPage = request.nextUrl.pathname === '/' ? '/dashboard' : 
+                              request.nextUrl.pathname.startsWith('/auth') ? '/dashboard' : 
+                              request.nextUrl.pathname;
+              verifyUrl.searchParams.set('next', nextPage);
+              
+              console.log(`[Middleware:${requestId}] Redirecting to magic link verification: ${verifyUrl.toString()}`);
+              return NextResponse.redirect(verifyUrl);
+            }
+          } else if (supabaseUserResult.success && !supabaseUserResult.magicLink) {
+            console.log(`[Middleware:${requestId}] User exists in Supabase, no magic link needed`);
+            // User exists but no session - this shouldn't happen normally
+            // Alternative: implement session reuse with supabase.auth.setSession({ access_token, refresh_token })
+            // if you have the user's Supabase tokens stored elsewhere
+          } else if (!supabaseUserResult.success) {
+            console.error(`[Middleware:${requestId}] Failed to handle Supabase user:`, supabaseUserResult.error);
+          }
+        } else if (supabaseUser) {
+          console.log(`[Middleware:${requestId}] Supabase session already exists, skipping user handling`);
+        }
+      } else {
+        console.log(`[Middleware:${requestId}] External access token invalid, attempting refresh`);
+        
+        // Try to refresh with refresh token
+        if (refreshToken) {
+          const refreshResult = await refreshTokens(refreshToken);
+          
+          if (refreshResult.success && refreshResult.access_token && refreshResult.refresh_token) {
+            console.log(`[Middleware:${requestId}] Token refresh successful`);
+            
+            // Update cookies with new tokens
+            supabaseResponse.cookies.set('access_token', refreshResult.access_token, {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              maxAge: 60 * 60 * 24 * 7 // 7 days
+            });
+            
+            supabaseResponse.cookies.set('refresh_token', refreshResult.refresh_token, {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              maxAge: 60 * 60 * 24 * 30 // 30 days
+            });
+            
+            // Verify the new token and handle Supabase user
+            const newVerification = await verifyAccessToken(refreshResult.access_token);
+            if (newVerification.valid) {
+              externalAuthValid = true;
+              externalUser = newVerification.user;
+              
+              // Only handle Supabase user creation/login if we DON'T have a Supabase session yet and have service role key
+              if (!supabaseUser && externalUser && (externalUser.email || externalUser.user?.email) && supabase) {
+                console.log(`[Middleware:${requestId}] No Supabase session after refresh, handling user creation/login`);
+                const supabaseUserResult = await handleSupabaseUser(supabase, externalUser);
+                
+                if (supabaseUserResult.success && supabaseUserResult.magicLink) {
+                  console.log(`[Middleware:${requestId}] Supabase user handled after refresh, redirecting to magic link`);
+                  
+                  const magicLinkUrl = new URL(supabaseUserResult.magicLink);
+                  const token = magicLinkUrl.searchParams.get('token');
+                  const type = magicLinkUrl.searchParams.get('type');
+                  
+                  if (token && type) {
+                    const verifyUrl = new URL('/auth/confirm', request.url);
+                    verifyUrl.searchParams.set('token', token);
+                    verifyUrl.searchParams.set('type', type);
+                    
+                    // Set next to dashboard or the original intended destination  
+                    const nextPage = request.nextUrl.pathname === '/' ? '/dashboard' : 
+                                    request.nextUrl.pathname.startsWith('/auth') ? '/dashboard' : 
+                                    request.nextUrl.pathname;
+                    verifyUrl.searchParams.set('next', nextPage);
+                    
+                    return NextResponse.redirect(verifyUrl);
+                  }
+                } else if (supabaseUserResult.success && !supabaseUserResult.magicLink) {
+                  console.log(`[Middleware:${requestId}] User exists in Supabase after refresh, no magic link needed`);
+                }
+              } else if (supabaseUser) {
+                console.log(`[Middleware:${requestId}] Supabase session already exists after refresh, skipping user handling`);
+              }
+            }
+          }
+        }
       }
-      // Allow access to public routes
-      return supabaseResponse
     }
 
-    // User is authenticated
+    // If no external auth tokens found, redirect to external auth service
+    if (!accessToken && !refreshToken) {
+      console.log(`[Middleware:${requestId}] No external auth tokens found, redirecting to auth service`);
+      
+      if (!isPublicRoute) {
+        const currentUrl = process.env.NEXT_PUBLIC_BASE_URL || getBaseUrl() || 'http://localhost:3000';
+        const loginUrl = `https://makebell-supabase.onrender.com/auth/login?redirect_url=${encodeURIComponent(currentUrl)}&app_name=Meeting%20Minutes%20AI`;
+        
+        console.log(`[Middleware:${requestId}] Redirecting to external auth: ${loginUrl}`);
+        return NextResponse.redirect(loginUrl);
+      }
+    }
+
+    // Check if either Supabase auth or external auth is valid
+    const isAuthenticated = (supabaseUser && !supabaseError) || externalAuthValid;
+    
+    console.log(`[Middleware:${requestId}] Final auth status - Supabase: ${!!supabaseUser}, External: ${externalAuthValid}, Overall: ${isAuthenticated}`);
+
+    // If there's no authentication from either service, handle accordingly
+    if (!isAuthenticated) {
+      // If accessing a protected route, redirect to login
+      if (!isPublicRoute) {
+        // Prefer external auth service if no tokens, otherwise use Supabase login
+        if (!accessToken && !refreshToken) {
+          const currentUrl = request.url;
+          const loginUrl = `https://makebell-supabase.onrender.com/auth/login?redirect_url=${encodeURIComponent(currentUrl)}&app_name=Meeting%20Minutes%20AI`;
+          
+          // Clear any invalid cookies
+          const response = NextResponse.redirect(loginUrl);
+          response.cookies.delete('access_token');
+          response.cookies.delete('refresh_token');
+          return response;
+        } else {
+          // Use Supabase login as fallback
+          const loginUrl = new URL('/login', request.url);
+          loginUrl.searchParams.set('redirectTo', request.nextUrl.pathname + request.nextUrl.search);
+          return NextResponse.redirect(loginUrl);
+        }
+      }
+      // Allow access to public routes
+      return supabaseResponse;
+    }
+
+    // User is authenticated (either through Supabase or external service)
     // If accessing auth pages while logged in, redirect to dashboard
-    if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
+    if (isAuthenticated && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
     // If authenticated user accesses root, redirect to dashboard
-    if (user && request.nextUrl.pathname === '/') {
+    if (isAuthenticated && request.nextUrl.pathname === '/') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
-    // Add user info to response headers for client-side access
+    // Add authentication info to response headers
     supabaseResponse.headers.set('x-user-authenticated', 'true')
-    if (user?.id) {
-      supabaseResponse.headers.set('x-user-id', user.id)
+    
+    // Add Supabase user info if available
+    if (supabaseUser?.id) {
+      supabaseResponse.headers.set('x-supabase-user-id', supabaseUser.id)
+    }
+    
+    // Add external auth user context if available
+    if (externalUser) {
+      supabaseResponse.headers.set('x-user-context', JSON.stringify(externalUser))
+      supabaseResponse.headers.set('x-external-auth', 'true')
     }
 
     return supabaseResponse
 
   } catch (error) {
-    console.error('Middleware error:', error)
+    console.error(`[Middleware:${requestId}] Middleware error:`, error)
     
-    // On error, allow public routes but redirect protected routes to login
+    // On error, allow public routes but redirect protected routes to appropriate login
     const publicRoutes = [
       '/login',
       '/register',
@@ -117,9 +537,19 @@ export async function middleware(request: NextRequest) {
     )
 
     if (!isPublicRoute) {
-      const loginUrl = new URL('/login', request.url)
-      loginUrl.searchParams.set('redirectTo', request.nextUrl.pathname + request.nextUrl.search)
-      return NextResponse.redirect(loginUrl)
+      // Try external auth first, then fallback to Supabase
+      const accessToken = request.cookies.get('access_token')?.value;
+      const refreshToken = request.cookies.get('refresh_token')?.value;
+      
+      if (!accessToken && !refreshToken) {
+        const currentUrl = request.url;
+        const loginUrl = `https://makebell-supabase.onrender.com/auth/login?redirect_url=${encodeURIComponent(currentUrl)}&app_name=Meeting%20Minutes%20AI`;
+        return NextResponse.redirect(loginUrl);
+      } else {
+        const loginUrl = new URL('/login', request.url);
+        loginUrl.searchParams.set('redirectTo', request.nextUrl.pathname + request.nextUrl.search);
+        return NextResponse.redirect(loginUrl);
+      }
     }
 
     return supabaseResponse
@@ -137,4 +567,4 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico|public/).*)',
   ],
-} 
+}
