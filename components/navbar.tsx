@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { ChevronDown, LogOut, Coins, RefreshCw, CreditCard } from "lucide-react";
 import { useUserBalance } from "@/hooks/useUserBalance";
 
@@ -110,7 +111,17 @@ export default function Navbar({
         <div className="flex items-center justify-between">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-2 sm:space-x-3">
-
+         
+            <Image 
+              src="/logo wide black transparant.svg"
+              alt="Makebell Logo" 
+              width={90} 
+              height={24}
+              className="h-6 w-auto"
+            />
+            <span className="text-gray-400">|</span>
+            <span className="text-lg text-black font-bold">Tabular Review</span>
+         
           </div>
 
           {/* User Info Section */}
