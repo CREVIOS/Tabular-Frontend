@@ -403,7 +403,7 @@ export function Sidebar({ className }: SidebarProps) {
     </div>
 
         {/* User Section */}
-        <div className="border-t border-gray-200 p-4">
+        {/* <div className="border-t border-gray-200 p-4">
           {currentUser && !isCollapsed && (
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-3">
               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -436,7 +436,7 @@ export function Sidebar({ className }: SidebarProps) {
             </div>
             {!isCollapsed && "Sign Out"}
           </Button>
-        </div>
+        </div> */}
       </div>
     </>
   )
