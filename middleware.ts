@@ -419,8 +419,8 @@ export async function middleware(request: NextRequest) {
             const type = magicLinkUrl.searchParams.get('type');
             
             if (token && type) {
-              // Redirect to magic link verification - avoid setting next to auth/confirm to prevent loops
-              const verifyUrl = new URL('/auth/confirm', request.url);
+              const origin = getBaseUrl(request);
+              const verifyUrl = new URL('/auth/confirm', origin);
               verifyUrl.searchParams.set('token', token);
               verifyUrl.searchParams.set('type', type);
               
@@ -483,7 +483,8 @@ export async function middleware(request: NextRequest) {
                   const type = magicLinkUrl.searchParams.get('type');
                   
                   if (token && type) {
-                    const verifyUrl = new URL('/auth/confirm', request.url);
+                    const origin = getBaseUrl(request);
+                    const verifyUrl = new URL('/auth/confirm', origin);
                     verifyUrl.searchParams.set('token', token);
                     verifyUrl.searchParams.set('type', type);
                     
@@ -539,7 +540,8 @@ export async function middleware(request: NextRequest) {
           return response;
         } else {
           // Use Supabase login as fallback
-          const loginUrl = new URL('/login', request.url);
+          const origin = getBaseUrl(request);
+          const loginUrl = new URL('/login', origin);
           loginUrl.searchParams.set('redirectTo', request.nextUrl.pathname + request.nextUrl.search);
           return NextResponse.redirect(loginUrl);
         }
@@ -551,12 +553,14 @@ export async function middleware(request: NextRequest) {
     // User is authenticated (either through Supabase or external service)
     // If accessing auth pages while logged in, redirect to dashboard
     if (isAuthenticated && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      const origin = getBaseUrl(request);
+      return NextResponse.redirect(new URL('/dashboard', origin))
     }
 
     // If authenticated user accesses root, redirect to dashboard
     if (isAuthenticated && request.nextUrl.pathname === '/') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      const origin = getBaseUrl(request);
+      return NextResponse.redirect(new URL('/dashboard', origin))
     }
 
     // Add authentication info to response headers
@@ -600,7 +604,8 @@ export async function middleware(request: NextRequest) {
         const loginUrl = `https://makebell-supabase.onrender.com/auth/login?redirect_url=${encodeURIComponent(getBaseUrl(request))}&app_name=Meeting%20Minutes%20AI`;
         return NextResponse.redirect(loginUrl);
       } else {
-        const loginUrl = new URL('/login', request.url);
+        const origin = getBaseUrl(request);
+        const loginUrl = new URL('/login', origin);
         loginUrl.searchParams.set('redirectTo', request.nextUrl.pathname + request.nextUrl.search);
         return NextResponse.redirect(loginUrl);
       }

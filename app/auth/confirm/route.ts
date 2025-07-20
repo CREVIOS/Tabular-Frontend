@@ -1,6 +1,42 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
+// Helper function to get the appropriate base URL
+function getBaseUrl(request: NextRequest) {
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
+  }
+  
+  // HARDCODED: If we detect Render environment, always use the known public URL
+  if (process.env.RENDER || process.env.RENDER_SERVICE_ID) {
+    return 'https://tabular-frontend.onrender.com';
+  }
+  
+  // For production, ALWAYS use the public URL first
+  if (process.env.NEXT_PUBLIC_BASE_URL && !process.env.NEXT_PUBLIC_BASE_URL.includes('0.0.0.0')) {
+    return process.env.NEXT_PUBLIC_BASE_URL;
+  }
+  
+  // Try to extract from request headers if available
+  // Check X-Forwarded-Host first (Render sets this to the public domain)
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  if (forwardedHost && !forwardedHost.includes('0.0.0.0') && !forwardedHost.includes('localhost')) {
+    console.log(`[getBaseUrl] Using x-forwarded-host: ${forwardedHost}`);
+    return `https://${forwardedHost}`;
+  }
+  
+  // Check regular host header
+  const host = request.headers.get('host');
+  if (host && !host.includes('0.0.0.0') && !host.includes('localhost') && !host.includes('10000')) {
+    console.log(`[getBaseUrl] Using host header: ${host}`);
+    return `https://${host}`;
+  }
+  
+  // Fallback: your known production URL (NEVER use 0.0.0.0)
+  console.log(`[getBaseUrl] Using fallback URL`);
+  return 'https://tabular-frontend.onrender.com';
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const token = searchParams.get('token')
@@ -11,12 +47,14 @@ export async function GET(request: NextRequest) {
 
   if (!token || !type) {
     console.error('[Auth Confirm] Missing token or type')
-    return NextResponse.redirect(new URL('/login?error=invalid_token', request.url))
+    const origin = getBaseUrl(request);
+    return NextResponse.redirect(new URL('/login?error=invalid_token', origin))
   }
 
   // Create the response object first
   const redirectUrl = next.startsWith('/') ? next : '/dashboard'
-  const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+  const origin = getBaseUrl(request);
+  const response = NextResponse.redirect(new URL(redirectUrl, origin))
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,12 +84,14 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[Auth Confirm] Auth confirmation error:', error.message)
-      return NextResponse.redirect(new URL(`/login?error=auth_failed&details=${encodeURIComponent(error.message)}`, request.url))
+      const origin = getBaseUrl(request);
+      return NextResponse.redirect(new URL(`/login?error=auth_failed&details=${encodeURIComponent(error.message)}`, origin))
     }
 
     if (!data.user) {
       console.error('[Auth Confirm] No user data returned from verification')
-      return NextResponse.redirect(new URL('/login?error=no_user_data', request.url))
+      const origin = getBaseUrl(request);
+      return NextResponse.redirect(new URL('/login?error=no_user_data', origin))
     }
 
     console.log('[Auth Confirm] Auth confirmation successful for user:', data.user.email)
@@ -61,6 +101,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('[Auth Confirm] Auth confirmation exception:', error)
-    return NextResponse.redirect(new URL(`/login?error=auth_exception&details=${encodeURIComponent((error as Error).message)}`, request.url))
+    const origin = getBaseUrl(request);
+    return NextResponse.redirect(new URL(`/login?error=auth_exception&details=${encodeURIComponent((error as Error).message)}`, origin))
   }
 }
