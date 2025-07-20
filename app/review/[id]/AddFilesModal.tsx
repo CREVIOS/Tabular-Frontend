@@ -1,36 +1,93 @@
-// AddFilesModal.tsx - Fixed FileItem interface to match database schema
+// AddFilesModal.tsx - Updated with shadcn Dialog and Supabase RPC
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { X, Search, FileText, AlertCircle, CheckCircle, Loader2, Folder, ArrowLeft } from 'lucide-react'
+import { Search, FileText, AlertCircle, CheckCircle, Loader2, Folder, File, Image, FileSpreadsheet, Archive, Video, Music } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-// Fixed: Updated interface to match database schema and ReviewDetailPage
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+// Updated interface to match RPC function return
 interface FileItem {
-  id: string
-  original_filename: string
-  file_size: number | null  // Changed from number to number | null
-  status: string | null     // Changed from string to string | null
+  file_id: string
+  file_name: string
+  file_size: number | null
+  is_in_review: boolean
   folder_id: string | null
-  created_at: string | null // Changed from string to string | null
-  folder?: {
-    name: string
-  }
+  folder_name: string | null
 }
 
 interface AddFilesModalProps {
   isOpen: boolean
   onClose: () => void
   reviewId: string
-  existingFileIds: string[]
-  existingFiles?: FileItem[] // Now compatible with ReviewDetailPage FileItem[]
+  existingFileIds?: string[] // Keep for compatibility but not used with RPC
+  existingFiles?: any[] // Keep for compatibility
   onFilesAdded?: () => void
+}
+
+// Helper function to get file type icon and color
+const getFileTypeInfo = (filename: string) => {
+  const extension = filename.split('.').pop()?.toLowerCase()
+  
+  if (!extension) return { icon: File, color: 'text-gray-500', type: 'unknown' }
+  
+  // Image files
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
+    return { icon: Image, color: 'text-green-500', type: 'image' }
+  }
+  
+  // Document files
+  if (['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'].includes(extension)) {
+    return { icon: FileText, color: 'text-blue-500', type: 'document' }
+  }
+  
+  // Spreadsheet files
+  if (['xls', 'xlsx', 'csv', 'ods'].includes(extension)) {
+    return { icon: FileSpreadsheet, color: 'text-green-600', type: 'spreadsheet' }
+  }
+  
+  // Archive files
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
+    return { icon: Archive, color: 'text-yellow-600', type: 'archive' }
+  }
+  
+  // Video files
+  if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'].includes(extension)) {
+    return { icon: Video, color: 'text-purple-500', type: 'video' }
+  }
+  
+  // Audio files
+  if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'wma'].includes(extension)) {
+    return { icon: Music, color: 'text-pink-500', type: 'audio' }
+  }
+  
+  // Default
+  return { icon: File, color: 'text-gray-500', type: 'other' }
 }
 
 export default function AddFilesModal({ 
   isOpen, 
   onClose, 
   reviewId, 
-  existingFileIds,
-  existingFiles = [],
   onFilesAdded
 }: AddFilesModalProps) {
   const [availableFiles, setAvailableFiles] = useState<FileItem[]>([])
@@ -38,116 +95,84 @@ export default function AddFilesModal({
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'completed'>('completed')
-  const [viewMode, setViewMode] = useState<'folder' | 'all'>('folder')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'available'>('available')
+  const [filterType, setFilterType] = useState<'all' | 'document' | 'image' | 'spreadsheet' | 'other'>('all')
+  const [filterFolder, setFilterFolder] = useState<string>('all')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [reviewFolder, setReviewFolder] = useState<{ id: string; name: string } | null>(null)
+  
   const supabase = createClient()
   
-  // Determine the folder from existing files
-  const determineReviewFolder = useCallback(() => {
-    if (existingFiles.length === 0) {
-      setViewMode('all')
-      return null
-    }
-
-    // Check if all existing files are from the same folder
-    const folderIds = existingFiles
-      .map(file => file.folder_id)
-      .filter((id, index, arr) => arr.indexOf(id) === index) // unique values
-    
-    if (folderIds.length === 1 && folderIds[0] !== null) {
-      // All files are from the same folder
-      const folder = existingFiles.find(file => file.folder_id === folderIds[0])?.folder
-      if (folder) {
-        const reviewFolder = { id: folderIds[0], name: folder.name }
-        setReviewFolder(reviewFolder)
-        setViewMode('folder')
-        return reviewFolder
-      }
-    }
-    
-    // Mixed folders or no folder - show all files
-    setViewMode('all')
-    return null
-  }, [existingFiles])
-  
-  // Fetch available files
+  // Fetch files using the new RPC function
   const fetchFiles = useCallback(async () => {
     setLoading(true)
     setError(null)
     
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app2.makebell.com:8443'
+      const { data, error: rpcError } = await supabase
+        .rpc('get_review_files', { review_id_param: reviewId })
       
-      // Determine if we should fetch folder-specific files
-      const folder = determineReviewFolder()
-      
-      let url: string
-      if (viewMode === 'folder' && folder) {
-        // Fetch files from the specific folder
-        url = `${backendUrl}/api/files/?folder_id=${folder.id}&page=1&limit=100`
-      } else {
-        // Fetch all available files
-        url = `${backendUrl}/api/reviews/${reviewId}/files`
+      if (rpcError) {
+        throw new Error(rpcError.message)
       }
       
-      const response = await fetch(url)
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch files: ${response.statusText}`)
-      }
-      
-      const data = await response.json()
-      
-      // Handle different response formats
-      let files: FileItem[] = []
-      if (viewMode === 'folder') {
-        files = Array.isArray(data) ? data : data.files || []
-      } else {
-        files = data.files || []
-      }
-      
-      setAvailableFiles(files)
+      setAvailableFiles(data || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load files')
     } finally {
       setLoading(false)
     }
-  }, [reviewId, viewMode, determineReviewFolder])
+  }, [reviewId, supabase])
   
-  // Load files when modal opens or view mode changes
+  // Load files when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchFiles()
       setSelectedFileIds([])
       setSearchQuery('')
       setError(null)
+      setSuccessMessage(null)
     }
   }, [isOpen, fetchFiles])
+  
+  // Get unique folders for filter dropdown
+  const uniqueFolders = useMemo(() => {
+    const folders = availableFiles
+      .filter(file => file.folder_name)
+      .map(file => ({ id: file.folder_id!, name: file.folder_name! }))
+      .filter((folder, index, arr) => 
+        arr.findIndex(f => f.id === folder.id) === index
+      )
+    return folders
+  }, [availableFiles])
   
   // Filter available files
   const filteredFiles = useMemo(() => {
     return availableFiles.filter(file => {
-      // Exclude files already in review
-      if (existingFileIds.includes(file.id)) return false
+      // Filter by review status
+      if (filterStatus === 'available' && file.is_in_review) return false
       
-      // Filter by status - handle null values
-      if (filterStatus === 'completed' && file.status !== 'completed') return false
+      // Filter by file type
+      if (filterType !== 'all') {
+        const { type } = getFileTypeInfo(file.file_name)
+        if (type !== filterType) return false
+      }
+      
+      // Filter by folder
+      if (filterFolder !== 'all' && file.folder_id !== filterFolder) return false
       
       // Filter by search query
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         return (
-          file.original_filename.toLowerCase().includes(query) ||
-          file.folder?.name?.toLowerCase().includes(query)
+          file.file_name.toLowerCase().includes(query) ||
+          file.folder_name?.toLowerCase().includes(query)
         )
       }
       
       return true
     })
-  }, [availableFiles, existingFileIds, filterStatus, searchQuery])
+  }, [availableFiles, filterStatus, filterType, filterFolder, searchQuery])
   
   // Handle file selection
   const toggleFileSelection = useCallback((fileId: string) => {
@@ -159,17 +184,12 @@ export default function AddFilesModal({
   }, [])
   
   const selectAll = useCallback(() => {
-    setSelectedFileIds(filteredFiles.map(f => f.id))
+    const availableForSelection = filteredFiles.filter(f => !f.is_in_review)
+    setSelectedFileIds(availableForSelection.map(f => f.file_id))
   }, [filteredFiles])
   
   const deselectAll = useCallback(() => {
     setSelectedFileIds([])
-  }, [])
-  
-  const toggleViewMode = useCallback(() => {
-    setViewMode(prev => prev === 'folder' ? 'all' : 'folder')
-    setSelectedFileIds([])
-    setSearchQuery('')
   }, [])
   
   const handleSubmit = useCallback(async () => {
@@ -177,16 +197,19 @@ export default function AddFilesModal({
     setIsSubmitting(true)
     setError(null)
     setSuccessMessage(null)
+    
     try {
       // Get Supabase session and access token
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session?.access_token) {
         throw new Error('Authentication required. Please log in again.')
       }
-      // Backend URL
+      
+      // Backend URL - COMMENTED OUT OLD API CALL
+      /*
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app2.makebell.com:8443'
       const url = `${backendUrl}/api/reviews/${reviewId}/files`
-      // POST to backend API
+      
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -198,9 +221,25 @@ export default function AddFilesModal({
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
-        console.log(data)
         throw new Error(data.error || data.message || data.detail || 'Failed to add files')
       }
+      */
+      
+      // NEW: Use Supabase to add files to review
+      const filesToAdd = selectedFileIds.map(fileId => ({
+        review_id: reviewId,
+        file_id: fileId,
+        added_at: new Date().toISOString()
+      }))
+      
+      const { error: insertError } = await supabase
+        .from('tabular_review_files')
+        .insert(filesToAdd)
+      
+      if (insertError) {
+        throw new Error(insertError.message)
+      }
+      
       setSuccessMessage('Files added successfully! Analysis will start automatically.')
       setTimeout(() => {
         setIsSubmitting(false)
@@ -214,7 +253,7 @@ export default function AddFilesModal({
     }
   }, [selectedFileIds, reviewId, onClose, supabase, onFilesAdded])
   
-  // Fixed: Format file size with null handling
+  // Format file size with null handling
   const formatFileSize = (bytes: number | null) => {
     if (bytes === null || bytes === 0) return '0 Bytes'
     const k = 1024
@@ -223,277 +262,252 @@ export default function AddFilesModal({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
   
-  if (!isOpen) return null
+  const availableFilesCount = filteredFiles.filter(f => !f.is_in_review).length
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Add Documents</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {viewMode === 'folder' && reviewFolder 
-                ? `Add more documents from "${reviewFolder.name}" folder`
-                : 'Select completed documents to add to your review'
-              }
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        
-        {/* View Mode Toggle */}
-        {reviewFolder && (
-          <div className="px-6 pt-4 pb-2">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={toggleViewMode}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  viewMode === 'folder' 
-                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Folder className="h-4 w-4" />
-                {reviewFolder.name} folder only
-              </button>
-              <button
-                onClick={toggleViewMode}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  viewMode === 'all' 
-                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <FileText className="h-4 w-4" />
-                All available files
-              </button>
-            </div>
-          </div>
-        )}
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-semibold">Add Documents</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Select completed documents to add to your review. Only files not already in the review are available for selection.
+          </DialogDescription>
+        </DialogHeader>
         
         {/* Progress Indicator */}
         {isSubmitting && (
-          <div className="mx-6 mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
+          <Card className="p-4 bg-blue-50 border-blue-200">
+            <div className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
               <span className="text-sm font-medium text-blue-900">
                 Adding {selectedFileIds.length} documents...
               </span>
             </div>
-          </div>
+          </Card>
         )}
+        
         {successMessage && (
-          <div className="mx-6 mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <Card className="p-4 bg-green-50 border-green-200">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <span className="text-sm text-green-800">{successMessage}</span>
             </div>
-          </div>
+          </Card>
         )}
         
         {/* Search and Filters */}
-        <div className="p-6 border-b bg-gray-50">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="space-y-4 py-4 border-y">
+          <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search documents..."
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by filename or folder..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="pl-9"
               />
             </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'completed')}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="completed">Completed Only</option>
-              <option value="all">All Documents</option>
-            </select>
+            
+            <div className="flex gap-2">
+              <Select value={filterStatus} onValueChange={(value: 'all' | 'available') => setFilterStatus(value)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Available Only</SelectItem>
+                  <SelectItem value="all">All Files</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="document">Documents</SelectItem>
+                  <SelectItem value="image">Images</SelectItem>
+                  <SelectItem value="spreadsheet">Spreadsheets</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {uniqueFolders.length > 0 && (
+                <Select value={filterFolder} onValueChange={setFilterFolder}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Folders</SelectItem>
+                    {uniqueFolders.map(folder => (
+                      <SelectItem key={folder.id} value={folder.id}>
+                        {folder.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
           
           {/* Selection Controls */}
-          <div className="flex items-center justify-between mt-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={selectAll}
-                disabled={filteredFiles.length === 0}
-                className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+                disabled={availableFilesCount === 0}
               >
-                Select All ({filteredFiles.length})
-              </button>
-              <button
+                Select All Available ({availableFilesCount})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={deselectAll}
                 disabled={selectedFileIds.length === 0}
-                className="text-sm text-gray-600 hover:text-gray-800 disabled:text-gray-400"
               >
                 Deselect All
-              </button>
+              </Button>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
-                {selectedFileIds.length} selected
-              </span>
-              {viewMode === 'folder' && reviewFolder && (
-                <div className="flex items-center gap-1 text-sm text-blue-600">
-                  <Folder className="h-3 w-3" />
-                  <span>{reviewFolder.name}</span>
-                </div>
-              )}
-            </div>
+            <Badge variant="secondary" className="text-sm">
+              {selectedFileIds.length} selected
+            </Badge>
           </div>
         </div>
         
         {/* File List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-[300px]">
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Loading files...</p>
+              </div>
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center h-64 text-red-600">
+            <div className="flex flex-col items-center justify-center h-64 text-destructive">
               <AlertCircle className="h-8 w-8 mb-2" />
-              <p className="text-sm font-medium">{error}</p>
-              <button
-                onClick={fetchFiles}
-                className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-              >
+              <p className="text-sm font-medium mb-2">{error}</p>
+              <Button variant="outline" size="sm" onClick={fetchFiles}>
                 Try Again
-              </button>
+              </Button>
             </div>
           ) : filteredFiles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
               <FileText className="h-8 w-8 mb-2" />
-              <p className="text-sm font-medium">
-                {viewMode === 'folder' && reviewFolder 
-                  ? `No more documents available in "${reviewFolder.name}" folder`
-                  : 'No documents available'
-                }
+              <p className="text-sm font-medium">No files found</p>
+              <p className="text-xs mt-1">
+                {searchQuery ? 'Try adjusting your search or filters' : 'No files match the current filters'}
               </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {searchQuery ? 'Try a different search term' : 
-                 viewMode === 'folder' ? 'All files from this folder are already in the review' :
-                 'Upload some documents first'}
-              </p>
-              {viewMode === 'folder' && reviewFolder && (
-                <button
-                  onClick={toggleViewMode}
-                  className="mt-3 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                >
-                  <ArrowLeft className="h-3 w-3" />
-                  View all available files
-                </button>
-              )}
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
-              {filteredFiles.map((file) => (
-                <div
-                  key={file.id}
-                  className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                    selectedFileIds.includes(file.id) ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                  }`}
-                  onClick={() => toggleFileSelection(file.id)}
-                >
-                  <div className="flex items-start gap-3 sm:items-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedFileIds.includes(file.id)}
-                      onChange={() => toggleFileSelection(file.id)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5 sm:mt-0 flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-start sm:items-center gap-2">
-                        <FileText className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5 sm:mt-0" />
-                        <div className="flex-1 min-w-0">
-                          <p 
-                            className="font-medium text-gray-900 break-words leading-tight text-sm"
-                            title={file.original_filename}
-                          >
-                            {file.original_filename}
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0">
-                          {file.status === 'completed' ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <div className="h-4 w-4 bg-yellow-400 rounded-full" />
+            <div className="space-y-2">
+              {filteredFiles.map((file) => {
+                const { icon: FileIcon, color, type } = getFileTypeInfo(file.file_name)
+                const isDisabled = file.is_in_review
+                const isSelected = selectedFileIds.includes(file.file_id)
+                
+                return (
+                  <Card
+                    key={file.file_id}
+                    className={`p-4 cursor-pointer transition-all duration-200 ${
+                      isDisabled 
+                        ? 'opacity-60 cursor-not-allowed bg-muted/30' 
+                        : isSelected 
+                          ? 'bg-blue-50 border-blue-200 shadow-sm' 
+                          : 'hover:bg-muted/50'
+                    }`}
+                    onClick={() => !isDisabled && toggleFileSelection(file.file_id)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={isSelected}
+                        disabled={isDisabled}
+                        onChange={() => !isDisabled && toggleFileSelection(file.file_id)}
+                        className="mt-1"
+                      />
+                      
+                      <FileIcon className={`h-5 w-5 ${color} mt-0.5 flex-shrink-0`} />
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-medium text-sm break-words leading-tight">
+                              {file.file_name}
+                            </h4>
+                            
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              <Badge variant="outline" className="text-xs">
+                                {formatFileSize(file.file_size)}
+                              </Badge>
+                              
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {type}
+                              </Badge>
+                              
+                              {file.folder_name && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Folder className="h-3 w-3 mr-1" />
+                                  {file.folder_name}
+                                </Badge>
+                              )}
+                              
+                              {isDisabled && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Already in review
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {!isDisabled && (
+                            <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                        <span className="bg-gray-100 px-2 py-1 rounded">
-                          {formatFileSize(file.file_size)}
-                        </span>
-                        <span className={`px-2 py-1 rounded font-medium ${
-                          file.status === 'completed' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {file.status || 'unknown'}
-                        </span>
-                        {file.folder && viewMode === 'all' && (
-                          <div className="flex items-center gap-1 bg-blue-100 px-2 py-1 rounded">
-                            <Folder className="h-3 w-3" />
-                            <span className="text-blue-700">{file.folder.name}</span>
-                          </div>
-                        )}
-                        {file.created_at && (
-                          <span className="hidden sm:inline">
-                            {new Date(file.created_at).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </Card>
+                )
+              })}
             </div>
           )}
         </div>
         
         {/* Footer */}
-        <div className="p-4 sm:p-6 border-t bg-gray-50 space-y-3">
+        <DialogFooter className="border-t pt-4">
           {error && !loading && (
-            <div className="flex items-center gap-2 text-red-600 justify-center sm:justify-start">
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
-              <span className="text-sm text-center sm:text-left">{error}</span>
+            <div className="flex items-center gap-2 text-destructive text-sm mr-auto">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
             </div>
           )}
-          <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
-            <button
+          
+          <div className="flex gap-3 ml-auto">
+            <Button
+              variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 order-2 sm:order-1"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleSubmit}
               disabled={selectedFileIds.length === 0 || isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 order-1 sm:order-2"
+              className="min-w-[120px]"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Adding...
                 </>
               ) : (
-                `Add ${selectedFileIds.length} Document${selectedFileIds.length !== 1 ? 's' : ''}`
+                `Add ${selectedFileIds.length} File${selectedFileIds.length !== 1 ? 's' : ''}`
               )}
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
