@@ -1,6 +1,6 @@
 // AddFilesModal.tsx - Updated with shadcn Dialog and Supabase RPC
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Search, FileText, AlertCircle, CheckCircle, Loader2, Folder, File, Image, FileSpreadsheet, Archive, Video, Music } from 'lucide-react'
+import { Search, FileText, AlertCircle, CheckCircle, Loader2, Folder } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 import {
@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -40,48 +39,21 @@ interface AddFilesModalProps {
   onClose: () => void
   reviewId: string
   existingFileIds?: string[] // Keep for compatibility but not used with RPC
-  existingFiles?: any[] // Keep for compatibility
+  existingFiles?: unknown[] // Keep for compatibility
   onFilesAdded?: () => void
 }
 
-// Helper function to get file type icon and color
+// Helper function to get file type icon and color (documents only)
 const getFileTypeInfo = (filename: string) => {
   const extension = filename.split('.').pop()?.toLowerCase()
   
-  if (!extension) return { icon: File, color: 'text-gray-500', type: 'unknown' }
-  
-  // Image files
-  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
-    return { icon: Image, color: 'text-green-500', type: 'image' }
-  }
-  
   // Document files
-  if (['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'].includes(extension)) {
+  if (extension && ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'].includes(extension)) {
     return { icon: FileText, color: 'text-blue-500', type: 'document' }
   }
   
-  // Spreadsheet files
-  if (['xls', 'xlsx', 'csv', 'ods'].includes(extension)) {
-    return { icon: FileSpreadsheet, color: 'text-green-600', type: 'spreadsheet' }
-  }
-  
-  // Archive files
-  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
-    return { icon: Archive, color: 'text-yellow-600', type: 'archive' }
-  }
-  
-  // Video files
-  if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'].includes(extension)) {
-    return { icon: Video, color: 'text-purple-500', type: 'video' }
-  }
-  
-  // Audio files
-  if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'wma'].includes(extension)) {
-    return { icon: Music, color: 'text-pink-500', type: 'audio' }
-  }
-  
-  // Default
-  return { icon: File, color: 'text-gray-500', type: 'other' }
+  // Default - treat all files as documents
+  return { icon: FileText, color: 'text-blue-500', type: 'document' }
 }
 
 export default function AddFilesModal({ 
@@ -96,7 +68,7 @@ export default function AddFilesModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'available'>('available')
-  const [filterType, setFilterType] = useState<'all' | 'document' | 'image' | 'spreadsheet' | 'other'>('all')
+  const [filterType, setFilterType] = useState<'all' | 'document'>('all')
   const [filterFolder, setFilterFolder] = useState<string>('all')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -205,8 +177,7 @@ export default function AddFilesModal({
         throw new Error('Authentication required. Please log in again.')
       }
       
-      // Backend URL - COMMENTED OUT OLD API CALL
-      /*
+      // Backend URL - Use backend API for adding files to review
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://app2.makebell.com:8443'
       const url = `${backendUrl}/api/reviews/${reviewId}/files`
       
@@ -223,9 +194,8 @@ export default function AddFilesModal({
         const data = await response.json().catch(() => ({}))
         throw new Error(data.error || data.message || data.detail || 'Failed to add files')
       }
-      */
       
-      // NEW: Use Supabase to add files to review
+      /* REMOVED: Direct Supabase insertion - using backend API instead
       const filesToAdd = selectedFileIds.map(fileId => ({
         review_id: reviewId,
         file_id: fileId,
@@ -239,6 +209,7 @@ export default function AddFilesModal({
       if (insertError) {
         throw new Error(insertError.message)
       }
+      */
       
       setSuccessMessage('Files added successfully! Analysis will start automatically.')
       setTimeout(() => {
@@ -270,7 +241,7 @@ export default function AddFilesModal({
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Add Documents</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Select completed documents to add to your review. Only files not already in the review are available for selection.
+            Select documents to add to your review. Only files not already in the review are available for selection.
           </DialogDescription>
         </DialogHeader>
         
@@ -319,16 +290,13 @@ export default function AddFilesModal({
                 </SelectContent>
               </Select>
               
-              <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+              <Select value={filterType} onValueChange={(value: 'all' | 'document') => setFilterType(value)}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="all">All Files</SelectItem>
                   <SelectItem value="document">Documents</SelectItem>
-                  <SelectItem value="image">Images</SelectItem>
-                  <SelectItem value="spreadsheet">Spreadsheets</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
               
@@ -404,7 +372,7 @@ export default function AddFilesModal({
           ) : (
             <div className="space-y-2">
               {filteredFiles.map((file) => {
-                const { icon: FileIcon, color, type } = getFileTypeInfo(file.file_name)
+                const { icon: FileIcon, color } = getFileTypeInfo(file.file_name)
                 const isDisabled = file.is_in_review
                 const isSelected = selectedFileIds.includes(file.file_id)
                 
@@ -442,8 +410,8 @@ export default function AddFilesModal({
                                 {formatFileSize(file.file_size)}
                               </Badge>
                               
-                              <Badge variant="outline" className="text-xs capitalize">
-                                {type}
+                              <Badge variant="outline" className="text-xs">
+                                Document
                               </Badge>
                               
                               {file.folder_name && (
