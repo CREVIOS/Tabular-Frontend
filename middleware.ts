@@ -99,7 +99,7 @@ async function refreshTokens(refreshToken: string) {
 }
 
 // Function to check if user exists in Supabase and create if needed
-async function handleSupabaseUser(supabase: SupabaseClient, externalUser: ExternalUser, hasSupabaseSession: boolean) {
+async function handleSupabaseUser(supabase: SupabaseClient, externalUser: ExternalUser, hasSupabaseSession: boolean, request?: NextRequest) {
   try {
     const email = externalUser.email || externalUser.user?.email;
     const userId = externalUser.id || externalUser.user?.id || externalUser.user_id;
@@ -133,7 +133,7 @@ async function handleSupabaseUser(supabase: SupabaseClient, externalUser: Extern
           type: 'magiclink',
           email: email,
           options: {
-            redirectTo: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+            redirectTo: getBaseUrl(request)
           }
         });
 
@@ -184,7 +184,7 @@ async function handleSupabaseUser(supabase: SupabaseClient, externalUser: Extern
         type: 'magiclink',
         email: email,
         options: {
-          redirectTo: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+          redirectTo: getBaseUrl(request)
         }
       });
 
@@ -207,11 +207,41 @@ async function handleSupabaseUser(supabase: SupabaseClient, externalUser: Extern
 }
 
 // Get the appropriate base URL based on environment
-function getBaseUrl() {
+function getBaseUrl(request?: NextRequest) {
   if (process.env.NODE_ENV === 'development') {
     return 'http://localhost:3000';
   }
-  return process.env.NEXT_PUBLIC_BASE_URL;
+  
+  // HARDCODED: If we detect Render environment, always use the known public URL
+  if (process.env.RENDER || process.env.RENDER_SERVICE_ID) {
+    return 'https://tabular-frontend.onrender.com';
+  }
+  
+  // For production, ALWAYS use the public URL first
+  if (process.env.NEXT_PUBLIC_BASE_URL && !process.env.NEXT_PUBLIC_BASE_URL.includes('0.0.0.0')) {
+    return process.env.NEXT_PUBLIC_BASE_URL;
+  }
+  
+  // Try to extract from request headers if available
+  if (request) {
+    // Check X-Forwarded-Host first (Render sets this to the public domain)
+    const forwardedHost = request.headers.get('x-forwarded-host');
+    if (forwardedHost && !forwardedHost.includes('0.0.0.0') && !forwardedHost.includes('localhost')) {
+      console.log(`[getBaseUrl] Using x-forwarded-host: ${forwardedHost}`);
+      return `https://${forwardedHost}`;
+    }
+    
+    // Check regular host header
+    const host = request.headers.get('host');
+    if (host && !host.includes('0.0.0.0') && !host.includes('localhost') && !host.includes('10000')) {
+      console.log(`[getBaseUrl] Using host header: ${host}`);
+      return `https://${host}`;
+    }
+  }
+  
+  // Fallback: your known production URL (NEVER use 0.0.0.0)
+  console.log(`[getBaseUrl] Using fallback URL`);
+  return 'https://tabular-frontend.onrender.com';
 }
 
 export async function middleware(request: NextRequest) {
@@ -251,7 +281,12 @@ export async function middleware(request: NextRequest) {
   // If tokens are in query params, store them in cookies and redirect to clean URL
   if (accessTokenFromQuery && refreshTokenFromQuery) {
     console.log(`[Middleware:${requestId}] Found tokens in query params, storing in cookies`);
-    const response = NextResponse.redirect(new URL(pathname, getBaseUrl()));
+    
+    const baseUrl = getBaseUrl(request);
+    console.log(`[Middleware:${requestId}] Base URL resolved to: ${baseUrl}`);
+    console.log(`[Middleware:${requestId}] Request headers - host: ${request.headers.get('host')}, x-forwarded-host: ${request.headers.get('x-forwarded-host')}`);
+    
+    const response = NextResponse.redirect(new URL(pathname, baseUrl));
     
     // Set cookies with the tokens
     response.cookies.set('access_token', accessTokenFromQuery, {
@@ -373,7 +408,7 @@ export async function middleware(request: NextRequest) {
         // Only handle Supabase user creation/login if we have service role key
         if (externalUser && (externalUser.email || externalUser.user?.email) && supabase) {
           console.log(`[Middleware:${requestId}] Handling Supabase user (has session: ${!!supabaseUser})`);
-          const supabaseUserResult = await handleSupabaseUser(supabase, externalUser, !!supabaseUser);
+          const supabaseUserResult = await handleSupabaseUser(supabase, externalUser, !!supabaseUser, request);
           
           if (supabaseUserResult.success && supabaseUserResult.magicLink) {
             console.log(`[Middleware:${requestId}] Supabase user handled successfully, redirecting to magic link`);
@@ -438,7 +473,7 @@ export async function middleware(request: NextRequest) {
               // ✅ FIXED: Pass hasSupabaseSession to handleSupabaseUser after refresh
               if (externalUser && (externalUser.email || externalUser.user?.email) && supabase) {
                 console.log(`[Middleware:${requestId}] Handling Supabase user after refresh (has session: ${!!supabaseUser})`);
-                const supabaseUserResult = await handleSupabaseUser(supabase, externalUser, !!supabaseUser);
+                const supabaseUserResult = await handleSupabaseUser(supabase, externalUser, !!supabaseUser, request);
                 
                 if (supabaseUserResult.success && supabaseUserResult.magicLink) {
                   console.log(`[Middleware:${requestId}] Supabase user handled after refresh, redirecting to magic link`);
@@ -475,7 +510,7 @@ export async function middleware(request: NextRequest) {
       console.log(`[Middleware:${requestId}] No external auth tokens found, redirecting to auth service`);
       
       if (!isPublicRoute) {
-        const currentUrl = process.env.NEXT_PUBLIC_BASE_URL || getBaseUrl() || 'http://localhost:3000';
+        const currentUrl = getBaseUrl(request);
         const loginUrl = `https://makebell-supabase.onrender.com/auth/login?redirect_url=${encodeURIComponent(currentUrl)}&app_name=Meeting%20Minutes%20AI`;
         
         console.log(`[Middleware:${requestId}] Redirecting to external auth: ${loginUrl}`);
@@ -495,7 +530,7 @@ export async function middleware(request: NextRequest) {
         // Prefer external auth service if no tokens, otherwise use Supabase login
         if (!accessToken && !refreshToken) {
           const currentUrl = request.url;
-          const loginUrl = `https://makebell-supabase.onrender.com/auth/login?redirect_url=${encodeURIComponent(currentUrl)}&app_name=Meeting%20Minutes%20AI`;
+          const loginUrl = `https://makebell-supabase.onrender.com/auth/login?redirect_url=${encodeURIComponent(getBaseUrl(request))}&app_name=Meeting%20Minutes%20AI`;
           
           // Clear any invalid cookies
           const response = NextResponse.redirect(loginUrl);
@@ -562,8 +597,7 @@ export async function middleware(request: NextRequest) {
       const refreshToken = request.cookies.get('refresh_token')?.value;
       
       if (!accessToken && !refreshToken) {
-        const currentUrl = request.url;
-        const loginUrl = `https://makebell-supabase.onrender.com/auth/login?redirect_url=${encodeURIComponent(currentUrl)}&app_name=Meeting%20Minutes%20AI`;
+        const loginUrl = `https://makebell-supabase.onrender.com/auth/login?redirect_url=${encodeURIComponent(getBaseUrl(request))}&app_name=Meeting%20Minutes%20AI`;
         return NextResponse.redirect(loginUrl);
       } else {
         const loginUrl = new URL('/login', request.url);
