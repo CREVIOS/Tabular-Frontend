@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Search, FileText, AlertCircle, CheckCircle, Loader2, Folder } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import type { Database } from '@/database.types'
 
 import {
   Dialog,
@@ -81,14 +82,25 @@ export default function AddFilesModal({
     setError(null)
     
     try {
-      const { data, error: rpcError } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error: rpcError } = await (supabase as any)
         .rpc('get_review_files', { review_id_param: reviewId })
       
       if (rpcError) {
         throw new Error(rpcError.message)
       }
       
-      setAvailableFiles(data || [])
+      // Transform the database response to match FileItem interface
+      const dbFiles: Database['public']['Functions']['get_review_files']['Returns'] = data || []
+      const transformedFiles: FileItem[] = dbFiles.map(file => ({
+        file_id: file.file_id,
+        file_name: file.file_name,
+        file_size: file.file_size,
+        is_in_review: file.is_in_review,
+        folder_id: file.folder_id,
+        folder_name: file.folder_name
+      }))
+      setAvailableFiles(transformedFiles)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load files')
     } finally {
