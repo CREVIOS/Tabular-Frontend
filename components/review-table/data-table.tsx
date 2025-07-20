@@ -362,13 +362,13 @@ export function DataTable({
         if (index === 0) return { wch: 35 } // Document column
         
         let maxWidth = header.length
-        exportData.slice(1, 6).forEach(row => {
+        exportData.slice(1, 6).forEach(row => { 
           if (row[index] && typeof row[index] === 'string') {
             maxWidth = Math.max(maxWidth, row[index].length)
           }
         })
         
-        return { wch: Math.min(Math.max(maxWidth + 2, 15), 50) }
+        return { wch: Math.min(Math.max(maxWidth + 2, 15), 50) } 
       })
       ws['!cols'] = colWidths
       
@@ -395,7 +395,7 @@ export function DataTable({
       if (selectedReviewColumns.length > 0) {
         metaData.push(['Column Name', 'Prompt', 'Data Type'])
         selectedReviewColumns.forEach(col => {
-          metaData.push([col.column_name, col.prompt, col.data_type])
+            metaData.push([col.column_name, col.prompt, col.data_type])
         })
       }
       
@@ -434,7 +434,7 @@ export function DataTable({
         </div>
       </div>
 
-      {reviewStatus === 'processing' && (
+      {/* {reviewStatus === 'processing' && (
         <Card className="border-blue-200 bg-blue-50/50">
           <CardContent className="pt-4">
             <div className="space-y-3">
@@ -454,7 +454,7 @@ export function DataTable({
             </div>
           </CardContent>
         </Card>
-      )}
+      )} */}
 
       <div className="flex items-center justify-between space-x-4">
         <div className="flex flex-1 items-center space-x-3">
@@ -478,13 +478,13 @@ export function DataTable({
         <div className="flex items-center space-x-2">
           {/* Action buttons */}
           <Button variant="outline" size="sm" onClick={handleAddFiles} className="h-9">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Documents
-          </Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Documents
+            </Button>
           <Button variant="outline" size="sm" onClick={handleAddColumn} className="h-9">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Column
-          </Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Column
+            </Button>
           {onStartAnalysis && reviewStatus !== 'processing' && (
             <Button size="sm" onClick={onStartAnalysis} className="h-9">
               <Play className="mr-2 h-4 w-4" />
@@ -550,95 +550,95 @@ export function DataTable({
                 minWidth: columns.length > 6 ? `${320 + (columns.length - 2) * 200 + 80}px` : 'auto'
               }}
             >
-              <Table className="w-full border-collapse">
-                <TableHeader className="bg-gray-50/80 sticky top-0 z-10">
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="border-b border-gray-200 hover:bg-transparent">
-                      {headerGroup.headers.map((header) => {
-                        return (
-                          <TableHead 
-                            key={header.id} 
-                            style={{ 
-                              width: header.getSize(),
-                              minWidth: header.column.columnDef.minSize || 'auto'
-                            }}
-                            className={`h-auto px-4 py-3 text-center font-semibold text-gray-900 border-r border-gray-200 last:border-r-0 bg-gray-50/80 backdrop-blur-sm ${
-                              (header.column.columnDef.meta as ColumnMeta)?.isSticky 
+            <Table className="w-full border-collapse">
+              <TableHeader className="bg-gray-50/80 sticky top-0 z-10">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id} className="border-b border-gray-200 hover:bg-transparent">
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead 
+                          key={header.id} 
+                          style={{ 
+                            width: header.getSize(),
+                            minWidth: header.column.columnDef.minSize || 'auto'
+                          }}
+                          className={`h-auto px-4 py-3 text-center font-semibold text-gray-900 border-r border-gray-200 last:border-r-0 bg-gray-50/80 backdrop-blur-sm ${
+                            (header.column.columnDef.meta as ColumnMeta)?.isSticky 
                                 ? 'sticky left-0 z-20' 
-                                : ''
-                            }`}>
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext()
-                                )}
-                          </TableHead>
-                        )
-                      })}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody className="bg-white">
-                  {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row, index) => (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && "selected"}
-                        className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
-                        } ${draggedRow === index ? 'opacity-50' : ''}`}
-                        draggable={true}
-                        onDragStart={(e) => handleDragStart(e, index)}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, index)}
-                        onDragEnd={handleDragEnd}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell 
-                            key={cell.id} 
-                            style={{ 
-                              width: cell.column.getSize(),
-                              minWidth: cell.column.columnDef.minSize || 'auto',
-                              maxWidth: cell.column.getSize()
-                            }}
-                            className={`px-3 py-4 align-top text-center border-r border-gray-100 last:border-r-0 overflow-hidden ${
-                              (cell.column.columnDef.meta as ColumnMeta)?.isSticky 
+                              : ''
+                          }`}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      )
+                    })}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody className="bg-white">
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row, index) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                      className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                      } ${draggedRow === index ? 'opacity-50' : ''}`}
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, index)}
+                      onDragEnd={handleDragEnd}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell 
+                          key={cell.id} 
+                          style={{ 
+                            width: cell.column.getSize(),
+                            minWidth: cell.column.columnDef.minSize || 'auto',
+                            maxWidth: cell.column.getSize()
+                          }}
+                          className={`px-3 py-4 align-top text-center border-r border-gray-100 last:border-r-0 overflow-hidden ${
+                            (cell.column.columnDef.meta as ColumnMeta)?.isSticky 
                                 ? 'sticky left-0 bg-white z-10' 
-                                : ''
-                            }`}
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="h-32 text-center"
-                      >
-                        <div className="flex flex-col items-center space-y-2">
-                          <div className="text-muted-foreground">No results found.</div>
-                          {globalFilter && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setGlobalFilter("")}
-                            >
-                              Clear search
-                            </Button>
+                              : ''
+                          }`}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
                           )}
-                        </div>
-                      </TableCell>
+                        </TableCell>
+                      ))}
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-32 text-center"
+                    >
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className="text-muted-foreground">No results found.</div>
+                        {globalFilter && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setGlobalFilter("")}
+                          >
+                            Clear search
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
             </div>
           </div>
         </CardContent>

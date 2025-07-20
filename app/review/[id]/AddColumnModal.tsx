@@ -1,6 +1,6 @@
 // AddColumnModal.tsx - Shadcn Dialog with React Hook Form and Zod validation
 import React, { useEffect } from 'react'
-import { Plus, AlertCircle, CheckCircle, Loader2, Info, Lightbulb } from 'lucide-react'
+import { Plus, AlertCircle, CheckCircle, Loader2, Lightbulb } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -30,13 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+
 import {
   Collapsible,
   CollapsibleContent,
@@ -74,12 +68,12 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>
 
 const DATA_TYPE_OPTIONS = [
-  { value: 'text', label: 'Text', description: 'General text content', icon: '📝' },
-  { value: 'number', label: 'Number', description: 'Numeric values', icon: '🔢' },
-  { value: 'date', label: 'Date', description: 'Dates (YYYY-MM-DD format)', icon: '📅' },
-  { value: 'boolean', label: 'Yes/No', description: 'True/false values', icon: '✅' },
-  { value: 'currency', label: 'Currency', description: 'Monetary amounts', icon: '💰' },
-  { value: 'percentage', label: 'Percentage', description: 'Percentage values', icon: '📊' }
+  { value: 'text', label: 'Text', description: 'General text content' },
+  { value: 'number', label: 'Number', description: 'Numeric values' },
+  { value: 'date', label: 'Date', description: 'Dates (YYYY-MM-DD format)' },
+  { value: 'boolean', label: 'Yes/No', description: 'True/false values' },
+  { value: 'currency', label: 'Currency', description: 'Monetary amounts' },
+  { value: 'percentage', label: 'Percentage', description: 'Percentage values' }
 ]
 
 const EXAMPLE_PROMPTS = [
@@ -227,12 +221,9 @@ export default function AddColumnModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5 text-blue-600" />
-            Add Analysis Column
-          </DialogTitle>
+          <DialogTitle>Add Analysis Column</DialogTitle>
           <DialogDescription>
-            Create a new data extraction column for your review. Define what information you want to extract from each document.
+            Create a new column to extract specific data from your documents.
           </DialogDescription>
         </DialogHeader>
 
@@ -257,103 +248,90 @@ export default function AddColumnModal({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Example Templates */}
             <Collapsible open={showExamples} onOpenChange={setShowExamples}>
-              <Card className="bg-blue-50 border-blue-200">
-                <CardHeader className="pb-3">
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" className="p-0 h-auto justify-start">
-                      <div className="flex items-center gap-2">
-                        <Lightbulb className="h-4 w-4 text-blue-600" />
-                        <CardTitle className="text-sm font-medium text-blue-900">
-                          Example Templates
-                        </CardTitle>
-                      </div>
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CardDescription className="text-blue-700 text-xs">
-                    Click to {showExamples ? 'hide' : 'show'} pre-built column templates
-                  </CardDescription>
-                </CardHeader>
-                <CollapsibleContent>
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {EXAMPLE_PROMPTS.map((example, index) => (
-                        <Card 
-                          key={index}
-                          className="cursor-pointer hover:bg-blue-100 transition-colors border-blue-200"
-                          onClick={() => handleExampleSelect(example)}
-                        >
-                          <CardContent className="p-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h4 className="font-medium text-sm text-blue-900">{example.name}</h4>
-                                <p className="text-xs text-blue-700 mt-1 line-clamp-2">{example.prompt}</p>
-                              </div>
-                              <Badge variant="outline" className="text-xs ml-2 bg-blue-100 text-blue-700 border-blue-300">
-                                {example.type}
-                              </Badge>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+              <div className="border rounded-lg p-3">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="p-0 h-auto justify-start">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Lightbulb className="h-4 w-4" />
+                      <span className="font-medium">Example Templates</span>
                     </div>
-                  </CardContent>
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {EXAMPLE_PROMPTS.map((example, index) => (
+                      <div 
+                        key={index}
+                        className="cursor-pointer hover:bg-gray-50 p-2 rounded border text-xs"
+                        onClick={() => handleExampleSelect(example)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium">{example.name}</h4>
+                            <p className="text-gray-600 mt-1 line-clamp-2">{example.prompt}</p>
+                          </div>
+                          <Badge variant="outline" className="text-xs ml-2">
+                            {example.type}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </CollapsibleContent>
-              </Card>
+              </div>
             </Collapsible>
 
-            {/* Column Name Field */}
-            <FormField
-              control={form.control}
-              name="column_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-medium">Column Name *</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g., Company Name, Total Amount, Contract Date"
-                      {...field}
-                      className="focus:ring-2 focus:ring-blue-500"
-                    />
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                    {field.value?.length || 0}/50 characters
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Data Type Field */}
-            <FormField
-              control={form.control}
-              name="data_type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-medium">Data Type *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+            {/* Column Name and Data Type - Side by Side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="column_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium">Column Name *</FormLabel>
                     <FormControl>
-                      <SelectTrigger className="focus:ring-2 focus:ring-blue-500">
-                        <SelectValue placeholder="Select data type" />
-                      </SelectTrigger>
+                      <Input
+                        placeholder="e.g., Company Name, Total Amount"
+                        {...field}
+                        className="focus:ring-2 focus:ring-blue-500"
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {DATA_TYPE_OPTIONS.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          <div className="flex items-center gap-2">
-                            <span>{option.icon}</span>
+                    <FormDescription className="text-xs">
+                      {field.value?.length || 0}/50 characters
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="data_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium">Data Type *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="focus:ring-2 focus:ring-blue-500">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {DATA_TYPE_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
                             <div>
                               <div className="font-medium">{option.label}</div>
                               <div className="text-xs text-muted-foreground">{option.description}</div>
                             </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {/* Analysis Prompt Field */}
             <FormField
@@ -376,24 +354,6 @@ export default function AddColumnModal({
                 </FormItem>
               )}
             />
-
-            {/* Tips Card */}
-            <Card className="bg-amber-50 border-amber-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-amber-900 flex items-center gap-2">
-                  <Info className="h-4 w-4" />
-                  Tips for Better Results
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <ul className="text-sm text-amber-800 space-y-1">
-                  <li>• Be specific about what you're looking for</li>
-                  <li>• Mention alternative terms (e.g., "company name or organization")</li>
-                  <li>• Specify format when relevant (e.g., "date in MM/DD/YYYY format")</li>
-                  <li>• Consider edge cases (e.g., "if no amount is found, return 0")</li>
-                </ul>
-              </CardContent>
-            </Card>
           </form>
         </Form>
 

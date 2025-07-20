@@ -14,8 +14,6 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
@@ -44,18 +42,7 @@ interface AddFilesModalProps {
   onFilesAdded?: () => void
 }
 
-// Helper function to get file type icon and color (documents only)
-const getFileTypeInfo = (filename: string) => {
-  const extension = filename.split('.').pop()?.toLowerCase()
-  
-  // Document files
-  if (extension && ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'].includes(extension)) {
-    return { icon: FileText, color: 'text-blue-500', type: 'document' }
-  }
-  
-  // Default - treat all files as documents
-  return { icon: FileText, color: 'text-blue-500', type: 'document' }
-}
+
 
 export default function AddFilesModal({ 
   isOpen, 
@@ -69,7 +56,7 @@ export default function AddFilesModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'available'>('available')
-  const [filterType, setFilterType] = useState<'all' | 'document'>('all')
+
   const [filterFolder, setFilterFolder] = useState<string>('all')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -136,12 +123,6 @@ export default function AddFilesModal({
       // Filter by review status
       if (filterStatus === 'available' && file.is_in_review) return false
       
-      // Filter by file type
-      if (filterType !== 'all') {
-        const { type } = getFileTypeInfo(file.file_name)
-        if (type !== filterType) return false
-      }
-      
       // Filter by folder
       if (filterFolder !== 'all' && file.folder_id !== filterFolder) return false
       
@@ -156,7 +137,7 @@ export default function AddFilesModal({
       
       return true
     })
-  }, [availableFiles, filterStatus, filterType, filterFolder, searchQuery])
+  }, [availableFiles, filterStatus, filterFolder, searchQuery])
   
   // Handle file selection
   const toggleFileSelection = useCallback((fileId: string) => {
@@ -249,42 +230,40 @@ export default function AddFilesModal({
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Add Documents</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Select documents to add to your review. Only files not already in the review are available for selection.
+          <DialogTitle>Add Documents</DialogTitle>
+          <DialogDescription>
+            Select documents to add to your review.
           </DialogDescription>
         </DialogHeader>
         
-        {/* Progress Indicator */}
+        {/* Status Messages */}
         {isSubmitting && (
-          <Card className="p-4 bg-blue-50 border-blue-200">
-            <div className="flex items-center gap-2">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-sm">
               <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">
-                Adding {selectedFileIds.length} documents...
-              </span>
+              <span className="text-blue-800">Adding {selectedFileIds.length} documents...</span>
             </div>
-          </Card>
+          </div>
         )}
         
         {successMessage && (
-          <Card className="p-4 bg-green-50 border-green-200">
-            <div className="flex items-center gap-2">
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 text-sm">
               <CheckCircle className="h-4 w-4 text-green-600" />
-              <span className="text-sm text-green-800">{successMessage}</span>
+              <span className="text-green-800">{successMessage}</span>
             </div>
-          </Card>
+          </div>
         )}
         
         {/* Search and Filters */}
-        <div className="space-y-4 py-4 border-y">
-          <div className="flex flex-col lg:flex-row gap-4">
+        <div className="space-y-3 py-3 border-y">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by filename or folder..."
+                placeholder="Search files..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -293,28 +272,18 @@ export default function AddFilesModal({
             
             <div className="flex gap-2">
               <Select value={filterStatus} onValueChange={(value: 'all' | 'available') => setFilterStatus(value)}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="available">Available Only</SelectItem>
+                  <SelectItem value="available">Available</SelectItem>
                   <SelectItem value="all">All Files</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={filterType} onValueChange={(value: 'all' | 'document') => setFilterType(value)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Files</SelectItem>
-                  <SelectItem value="document">Documents</SelectItem>
                 </SelectContent>
               </Select>
               
               {uniqueFolders.length > 0 && (
                 <Select value={filterFolder} onValueChange={setFilterFolder}>
-                  <SelectTrigger className="w-[160px]">
+                  <SelectTrigger className="w-[140px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -330,16 +299,15 @@ export default function AddFilesModal({
             </div>
           </div>
           
-          {/* Selection Controls */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-3">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={selectAll}
                 disabled={availableFilesCount === 0}
               >
-                Select All Available ({availableFilesCount})
+                Select All ({availableFilesCount})
               </Button>
               <Button
                 variant="outline"
@@ -347,12 +315,12 @@ export default function AddFilesModal({
                 onClick={deselectAll}
                 disabled={selectedFileIds.length === 0}
               >
-                Deselect All
+                Clear
               </Button>
             </div>
-            <Badge variant="secondary" className="text-sm">
-              {selectedFileIds.length} selected
-            </Badge>
+            <span className="text-muted-foreground">
+                {selectedFileIds.length} selected
+              </span>
           </div>
         </div>
         
@@ -383,20 +351,19 @@ export default function AddFilesModal({
             </div>
           ) : (
             <div className="space-y-2">
-              {filteredFiles.map((file) => {
-                const { icon: FileIcon, color } = getFileTypeInfo(file.file_name)
+                            {filteredFiles.map((file) => {
                 const isDisabled = file.is_in_review
                 const isSelected = selectedFileIds.includes(file.file_id)
                 
                 return (
-                  <Card
+                  <div
                     key={file.file_id}
-                    className={`p-4 cursor-pointer transition-all duration-200 ${
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                       isDisabled 
-                        ? 'opacity-60 cursor-not-allowed bg-muted/30' 
+                        ? 'opacity-60 cursor-not-allowed bg-gray-50' 
                         : isSelected 
-                          ? 'bg-blue-50 border-blue-200 shadow-sm' 
-                          : 'hover:bg-muted/50'
+                          ? 'bg-blue-50 border-blue-200' 
+                          : 'hover:bg-gray-50'
                     }`}
                     onClick={() => !isDisabled && toggleFileSelection(file.file_id)}
                   >
@@ -405,86 +372,74 @@ export default function AddFilesModal({
                         checked={isSelected}
                         disabled={isDisabled}
                         onChange={() => !isDisabled && toggleFileSelection(file.file_id)}
-                        className="mt-1"
+                        className="mt-0.5"
                       />
                       
-                      <FileIcon className={`h-5 w-5 ${color} mt-0.5 flex-shrink-0`} />
+                      <FileText className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
                       
-                      <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <h4 className="font-medium text-sm break-words leading-tight">
+                            <h4 className="font-medium text-sm break-words">
                               {file.file_name}
                             </h4>
                             
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              <Badge variant="outline" className="text-xs">
-                                {formatFileSize(file.file_size)}
-                              </Badge>
-                              
-                              <Badge variant="outline" className="text-xs">
-                                Document
-                              </Badge>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
+                              <span>{formatFileSize(file.file_size)}</span>
                               
                               {file.folder_name && (
-                                <Badge variant="outline" className="text-xs">
-                                  <Folder className="h-3 w-3 mr-1" />
+                                <span className="flex items-center gap-1">
+                                  <Folder className="h-3 w-3" />
                                   {file.folder_name}
-                                </Badge>
+                                </span>
                               )}
                               
                               {isDisabled && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Already in review
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {!isDisabled && (
-                            <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                <span className="text-amber-600">Already in review</span>
                           )}
+                        </div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </Card>
+                  </div>
                 )
               })}
             </div>
           )}
         </div>
         
-        {/* Footer */}
-        <DialogFooter className="border-t pt-4">
+        <DialogFooter className="border-t pt-3">
+          <div className="flex items-center justify-between w-full">
           {error && !loading && (
-            <div className="flex items-center gap-2 text-destructive text-sm mr-auto">
-              <AlertCircle className="h-4 w-4" />
-              <span>{error}</span>
+              <div className="flex items-center gap-2 text-destructive text-sm">
+                <AlertCircle className="h-4 w-4" />
+                <span>{error}</span>
             </div>
           )}
-          
-          <div className="flex gap-3 ml-auto">
-            <Button
-              variant="outline"
+            
+            <div className="flex gap-2 ml-auto">
+              <Button
+                variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
             >
               Cancel
-            </Button>
-            <Button
+              </Button>
+              <Button
               onClick={handleSubmit}
               disabled={selectedFileIds.length === 0 || isSubmitting}
-              className="min-w-[120px]"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Adding...
                 </>
               ) : (
-                `Add ${selectedFileIds.length} File${selectedFileIds.length !== 1 ? 's' : ''}`
+                  `Add ${selectedFileIds.length} File${selectedFileIds.length !== 1 ? 's' : ''}`
               )}
-            </Button>
+              </Button>
+            </div>
           </div>
         </DialogFooter>
       </DialogContent>
