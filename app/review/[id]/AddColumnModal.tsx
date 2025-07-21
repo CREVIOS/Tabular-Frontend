@@ -60,7 +60,7 @@ const formSchema = z.object({
   prompt: z
     .string()
     .min(10, 'Prompt must be at least 10 characters')
-    .max(500, 'Prompt must be less than 500 characters')
+    .max(2000, 'Prompt must be less than 2000 characters')
     .trim(),
   data_type: z.enum(['text', 'number', 'date', 'boolean', 'currency', 'percentage'])
 })
@@ -348,7 +348,7 @@ export default function AddColumnModal({
               />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    {field.value?.length || 0}/500 characters
+                    {field.value?.length || 0}/2000 characters
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

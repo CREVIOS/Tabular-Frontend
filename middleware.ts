@@ -214,7 +214,7 @@ function getBaseUrl(request?: NextRequest) {
   
   // HARDCODED: If we detect Render environment, always use the known public URL
   if (process.env.RENDER || process.env.RENDER_SERVICE_ID) {
-    return 'https://tabular-frontend.onrender.com';
+    return 'https://tabular.makebell.com';
   }
   
   // For production, ALWAYS use the public URL first
@@ -241,7 +241,7 @@ function getBaseUrl(request?: NextRequest) {
   
   // Fallback: your known production URL (NEVER use 0.0.0.0)
   console.log(`[getBaseUrl] Using fallback URL`);
-  return 'https://tabular-frontend.onrender.com';
+  return 'https://tabular.makebell.com';
 }
 
 export async function middleware(request: NextRequest) {
