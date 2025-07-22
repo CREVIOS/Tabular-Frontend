@@ -238,19 +238,6 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  // Smart file name truncation for different screen sizes
-  const truncateFileName = (fileName: string, maxLength: number = 30) => {
-    if (fileName.length <= maxLength) return fileName
-    
-    const extension = fileName.split('.').pop()
-    const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'))
-    const maxNameLength = maxLength - (extension?.length || 0) - 3 // Account for "..." and "."
-    
-    if (maxNameLength <= 0) return fileName.substring(0, maxLength - 3) + '...'
-    
-    return nameWithoutExt.substring(0, maxNameLength) + '...' + (extension ? '.' + extension : '')
-  }
-
   const pendingCount = selectedFiles.filter(f => f.status === 'pending').length
   const uploadingCount = selectedFiles.filter(f => ['uploading', 'processing', 'retrying', 'retry_pending'].includes(f.status)).length
   const completedCount = selectedFiles.filter(f => f.status === 'completed').length
@@ -400,19 +387,8 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
                       {/* File name and status */}
                       <div className="flex items-start gap-2">
                         <div className="flex-1 min-w-0">
-                          {/* Mobile: Show truncated name */}
-                          <p 
-                            className="text-sm font-medium break-words sm:hidden leading-tight"
-                            title={fileWithStatus.file.name}
-                          >
-                            {truncateFileName(fileWithStatus.file.name, 25)}
-                          </p>
-                          {/* Desktop: Show more of the name */}
-                          <p 
-                            className="text-sm font-medium break-words hidden sm:block leading-tight"
-                            title={fileWithStatus.file.name}
-                          >
-                            {truncateFileName(fileWithStatus.file.name, 50)}
+                          <p className="text-sm font-medium break-words leading-tight word-wrap overflow-wrap-anywhere">
+                            {fileWithStatus.file.name}
                           </p>
                         </div>
                         <div className="flex-shrink-0 mt-0.5">
