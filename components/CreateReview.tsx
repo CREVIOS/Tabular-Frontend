@@ -78,10 +78,7 @@ export default function EnhancedCreateReview({
   const [error, setError] = useState<string | null>(null)
   const [fileSearchQuery, setFileSearchQuery] = useState('')
   const [showFileSelector, setShowFileSelector] = useState(false)
-  
-  // New state for no content modal
   const [showNoContentModal, setShowNoContentModal] = useState(false)
-  const [forceShowNoContentModal, setForceShowNoContentModal] = useState(true) // Toggle this to control preview
 
   useEffect(() => {
     fetchFolders()
@@ -106,15 +103,9 @@ export default function EnhancedCreateReview({
 
   // Check if we should show no content modal
   useEffect(() => {
-    if (forceShowNoContentModal) {
-      // For preview - always show
-      setShowNoContentModal(true)
-    } else {
-      // Real logic - show when no content available
-      const hasContent = folders.length > 0 || availableFiles.length > 0
-      setShowNoContentModal(!hasContent && !loadingData)
-    }
-  }, [folders, availableFiles, loadingData, forceShowNoContentModal])
+    const hasContent = folders.length > 0 || availableFiles.length > 0
+    setShowNoContentModal(!hasContent && !loadingData)
+  }, [folders, availableFiles, loadingData])
 
   const fetchFolders = async () => {
     try {
@@ -356,19 +347,6 @@ export default function EnhancedCreateReview({
                   <h4 className="text-sm font-semibold text-purple-900">Create Review</h4>
                   <p className="text-xs text-purple-700">Return here to extract structured data</p>
                 </div>
-              </div>
-            </div>
-
-            {/* Preview Toggle (for demo purposes) */}
-            <div className="border-t pt-3">
-              <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
-                <span>Preview Mode:</span>
-                <button
-                  onClick={() => setForceShowNoContentModal(!forceShowNoContentModal)}
-                  className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs transition-colors"
-                >
-                  {forceShowNoContentModal ? 'Always Show Modal' : 'Normal Logic'}
-                </button>
               </div>
             </div>
           </div>
@@ -892,15 +870,15 @@ export default function EnhancedCreateReview({
                     <ul className="space-y-2 text-sm text-purple-800">
                       <li className="flex items-start gap-2">
                         <span className="text-purple-500">•</span>
-                        <span>Be specific: &quot;Extract contract value in USD format&quot; vs &quot;Find money&quot;</span>
+                        <span>Be specific: "Extract contract value in USD format" vs "Find money"</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-purple-500">•</span>
-                        <span>Include format preferences: &quot;Date in MM/DD/YYYY format&quot;</span>
+                        <span>Include format preferences: "Date in MM/DD/YYYY format"</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-purple-500">•</span>
-                        <span>Use clear column names: &quot;Invoice Total&quot; not &quot;Amount&quot;</span>
+                        <span>Use clear column names: "Invoice Total" not "Amount"</span>
                       </li>
                     </ul>
                   </div>
