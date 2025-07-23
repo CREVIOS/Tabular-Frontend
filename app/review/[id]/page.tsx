@@ -238,7 +238,7 @@ export default function ReviewDetailPage() {
           {/* Action buttons moved to DataTable toolbar */}
           
           {/* Status indicators */}
-          {existingFiles.length > 0 && (
+          {/* {existingFiles.length > 0 && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center gap-2 text-sm text-blue-700">
                 <FileText className="h-4 w-4" />
@@ -258,7 +258,7 @@ export default function ReviewDetailPage() {
                 </span>
               </div>
             </div>
-          )}
+          )} */}
         </div>
         
         {/* Fixed: Updated props to match RealTimeReviewTable interface */}

@@ -37,6 +37,18 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [retrying, setRetrying] = useState(false)
 
+  // Configure PDF.js to avoid worker errors
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Disable PDF.js worker to avoid CORS and loading issues
+      const pdfjsLib = (window as any).pdfjsLib;
+      if (pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+        pdfjsLib.disableWorker = true;
+      }
+    }
+  }, []);
+
   const fetchFileInfo = useCallback(async (isRetry = false) => {
     if (!selectedCell) return
     
@@ -140,6 +152,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       <div 
         className={`bg-white rounded-xl w-full ${isMobile ? 'max-w-[95vw] h-[95vh]' : 'max-w-5xl h-[90vh]'} flex flex-col shadow-2xl overflow-hidden border`}
         onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: '90vh', minHeight: '500px' }}
       >
         {/* Enhanced Header */}
         <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -209,9 +222,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                     {hasDetailedAnswer ? 'Detailed Analysis' : 'Extracted Information'}
                   </h3>
                 </div>
-                <div className="bg-gray-50 border rounded-xl p-4 max-h-64 overflow-y-auto">
-                  <p className="whitespace-pre-wrap leading-relaxed text-gray-800">{displayValue}</p>
-                </div>
+                                 <div className="bg-gray-50 border rounded-xl p-4 max-h-80 overflow-y-auto">
+                   <p className="whitespace-pre-wrap leading-relaxed text-gray-800 break-words">{displayValue}</p>
+                 </div>
               </div>
 
               {/* Enhanced Source Reference */}
@@ -220,9 +233,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                   <ExternalLink className="h-4 w-4 text-gray-600" />
                   <h4 className="font-medium">Source Reference</h4>
                 </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-h-40 overflow-y-auto">
-                  <p className="text-sm text-amber-800 italic">{selectedCell.sourceRef}</p>
-                </div>
+                                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-h-48 overflow-y-auto">
+                   <p className="text-sm text-amber-800 italic break-words">{selectedCell.sourceRef}</p>
+                 </div>
               </div>
 
               {/* Enhanced Confidence Score */}
@@ -313,6 +326,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                     config={{
                       header: { disableFileName: true },
                       pdfZoom: { defaultZoom: 1.0, zoomJump: 0.2 },
+                      pdfVerticalScrollByDefault: true,
                     }}
                     style={{ height: '100%' }}
                     theme={{
