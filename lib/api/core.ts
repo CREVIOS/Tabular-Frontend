@@ -66,10 +66,22 @@ import type {
   
   // Error handling utility
   export const handleApiError = (error: ApiError | string): string => {
-    if (typeof error === 'string') return error
+    if (typeof error === 'string') {
+      // Enhanced error parsing for file processing errors
+      if (error.includes('Invalid key:')) {
+        return 'File name contains invalid characters. Please rename the file and try again.'
+      }
+      if (error.includes('statusCode: 400') && error.includes('InvalidKey')) {
+        return 'File name is not compatible with storage system. Please use only letters, numbers, hyphens, and underscores in the filename.'
+      }
+      return error
+    }
     
     switch (error.status) {
       case 400:
+        if (error.message?.includes('Invalid key') || error.message?.includes('InvalidKey')) {
+          return 'File name contains invalid characters. Please rename the file using only letters, numbers, hyphens, and underscores.'
+        }
         return 'Invalid request. Please check your input.'
       case 401:
         return 'Authentication required. Please log in again.'
@@ -78,7 +90,7 @@ import type {
       case 404:
         return 'The requested resource was not found.'
       case 413:
-        return 'File too large. Please upload a smaller file.'
+        return 'File too large. Please upload a smaller file (max 50MB).'
       case 422:
         return 'Validation error. Please check your input data.'
       case 429:

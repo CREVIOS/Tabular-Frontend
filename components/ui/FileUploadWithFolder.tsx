@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { sanitizeFileName } from '@/lib/utils'
+import { sanitizeFileName, formatFileProcessingError } from '@/lib/utils'
 import { 
   IconCloudUpload, 
   IconX
@@ -139,7 +139,14 @@ export default function FileUploadWithFolders({
     
     // Sanitize filenames for security
     const processedFiles = validFiles.map(file => {
-      const sanitizedName = sanitizeFileName(file.name)
+      // Enhanced filename sanitization with validation
+      const sanitizedName = sanitizeFileName(file.name, 80) // Shorter for better compatibility
+      
+      // Validate the sanitized name
+      if (sanitizedName === 'sanitized_file.txt' || sanitizedName.startsWith('file_')) {
+        console.warn(`File "${file.name}" was heavily sanitized to "${sanitizedName}"`)
+      }
+      
       return new File([file], sanitizedName, { type: file.type })
     })
     
@@ -233,7 +240,8 @@ export default function FileUploadWithFolders({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }))
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`)
+        const errorMessage = errorData.detail || errorData.message || `HTTP error! status: ${response.status}`
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
@@ -244,7 +252,7 @@ export default function FileUploadWithFolders({
       
     } catch (error: unknown) {
       console.error('Upload failed:', error)
-      setError(error instanceof Error ? error.message : 'Upload failed. Please try again.')
+      setError(formatFileProcessingError(error))
     } finally {
       setUploading(false)
     }

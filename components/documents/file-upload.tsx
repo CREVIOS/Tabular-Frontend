@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
-import { sanitizeFileName } from '@/lib/utils'
+import { sanitizeFileName, formatFileProcessingError } from '@/lib/utils'
 import { 
   IconCloudUpload, 
   IconX, 
@@ -102,7 +102,14 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
     })
     
     const newFiles: FileWithStatus[] = validFiles.map(file => {
-      const sanitizedName = sanitizeFileName(file.name)
+      // Enhanced filename sanitization with validation
+      const sanitizedName = sanitizeFileName(file.name, 80) // Shorter for better compatibility
+      
+      // Validate the sanitized name
+      if (sanitizedName === 'sanitized_file.txt' || sanitizedName.startsWith('file_')) {
+        console.warn(`File "${file.name}" was heavily sanitized to "${sanitizedName}"`)
+      }
+      
       const safeFile = new File([file], sanitizedName, { type: file.type })
       return {
         file: safeFile,
@@ -222,15 +229,22 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
           console.log(`✅ All ${successCount} files uploaded successfully`)
           onUploadSuccess()
         } else {
-          setError(`${failureCount} file(s) failed to upload. You can retry individual files.`)
+          // Get specific error details from failed uploads
+          const failedUploads = result.data?.filter(r => !r.success) || []
+          const errorMessages = failedUploads.map(upload => 
+            upload.error ? formatFileProcessingError(upload.error) : 'Upload failed'
+          )
+          
+          const uniqueErrors = [...new Set(errorMessages)]
+          setError(`${failureCount} file(s) failed: ${uniqueErrors.join(', ')}. You can retry individual files.`)
         }
       } else {
-        setError(result.error || 'Upload failed')
+        setError(formatFileProcessingError(result.error || 'Upload failed'))
       }
 
     } catch (error) {
       console.error('Upload error:', error)
-      setError(error instanceof Error ? error.message : 'Upload failed')
+      setError(formatFileProcessingError(error))
     } finally {
       setUploading(false)
     }
