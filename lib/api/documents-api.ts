@@ -1,21 +1,21 @@
 // ============================================================================
-// DOCUMENTS API - File and Folder Management
+// Documents API - Handles file and folder operations with enhanced functionality
 // ============================================================================
 
 import { apiClient, getAuthToken } from './core'
+import { createClient } from '@/lib/supabase/client'
 import type { 
-  DocumentsData,
-  DocumentsStats,
-  FolderDetailsData,
-  File,
-  Folder,
-  MarkdownResponse,
   ApiResult,
+  DocumentsData,
+  FolderDetailsData,
   FolderCreate,
   FolderUpdate,
+  UploadProgress,
   PaginatedRequest,
-  // PaginatedResponse,
-  UploadProgress
+  Folder,
+  File,
+  MarkdownResponse,
+  DocumentsStats
 } from './types'
 
 export class DocumentsAPI {
@@ -281,32 +281,95 @@ export class DocumentsAPI {
   }
 
   /**
-   * Delete folder
+   * Delete a file by ID using Supabase
    */
-  static async deleteFolder(folderId: string): Promise<ApiResult<{ message: string; files_moved: number }>> {
+  static async deleteFile(fileId: string): Promise<ApiResult<void>> {
     try {
-      console.log(`🗑️ Deleting folder: ${folderId}`)
+      console.log(`🗑️ Deleting file: ${fileId}`)
       
-      const authToken = await getAuthToken()
-      if (!authToken) {
+      const supabase = createClient()
+      
+      // Check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
         return { success: false, error: 'Authentication required' }
       }
 
-      const result = await apiClient.delete<{ message: string; files_moved: number }>(`/api/folders/${folderId}`, authToken)
+      // Delete the file from the files table
+      const { error } = await supabase
+        .from('files')
+        .delete()
+        .eq('id', fileId)
+        .eq('user_id', session.user.id) // Ensure user can only delete their own files
 
-      if (result.success) {
-        console.log(`✅ Folder deleted: ${folderId}`)
+      if (error) {
+        console.error('Failed to delete file:', error)
+        return { success: false, error: error.message }
       }
 
-      return result.success
-        ? { success: true, data: result.data! }
-        : { success: false, error: result.error || 'Failed to delete folder' }
+      console.log(`✅ File deleted successfully: ${fileId}`)
+      return { success: true, data: undefined }
 
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete folder'
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete file'
+      console.error('Delete file error:', errorMessage)
+      return { success: false, error: errorMessage }
+    }
+  }
+
+  /**
+   * Delete a folder by ID using Supabase
+   */
+  static async deleteFolder(folderId: string): Promise<ApiResult<void>> {
+    try {
+      console.log(`🗑️ Deleting folder: ${folderId}`)
+      
+      const supabase = createClient()
+      
+      // Check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
+        return { success: false, error: 'Authentication required' }
       }
+
+      // First, check if folder has any files
+      const { data: files, error: filesError } = await supabase
+        .from('files')
+        .select('id')
+        .eq('folder_id', folderId)
+        .eq('user_id', session.user.id)
+
+      if (filesError) {
+        console.error('Failed to check folder files:', filesError)
+        return { success: false, error: filesError.message }
+      }
+
+      if (files && files.length > 0) {
+        return { 
+          success: false, 
+          error: `Cannot delete folder. It contains ${files.length} file(s). Please move or delete the files first.` 
+        }
+      }
+
+      // Delete the folder from the folders table
+      const { error } = await supabase
+        .from('folders')
+        .delete()
+        .eq('id', folderId)
+        .eq('user_id', session.user.id) // Ensure user can only delete their own folders
+
+      if (error) {
+        console.error('Failed to delete folder:', error)
+        return { success: false, error: error.message }
+      }
+
+      console.log(`✅ Folder deleted successfully: ${folderId}`)
+      return { success: true, data: undefined }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete folder'
+      console.error('Delete folder error:', errorMessage)
+      return { success: false, error: errorMessage }
     }
   }
 
@@ -379,7 +442,7 @@ export class DocumentsAPI {
       // Note: Progress callback removed as upload method doesn't support it yet
       if (onProgress) {
         // Simulate basic progress
-        const files = Array.from(formData.getAll('files')) as (globalThis.File)[]
+        const files = Array.from(formData.getAll('files')) as globalThis.File[]
         const fileProgress: UploadProgress[] = files.map((file) => ({
           file: file.name,
           progress: 0,
@@ -477,3 +540,4 @@ export const deleteFolder = DocumentsAPI.deleteFolder
 export const moveFile = DocumentsAPI.moveFile
 export const getFileMarkdown = DocumentsAPI.getFileMarkdown
 export const uploadFiles = DocumentsAPI.uploadFiles
+export const deleteFile = DocumentsAPI.deleteFile

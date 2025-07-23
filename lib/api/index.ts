@@ -1,135 +1,102 @@
 // ============================================================================
-// API INDEX - Main entry point for all API functions
+// API MODULES INDEX - Central export point for all API functionality
 // ============================================================================
 
-// Core API exports
-export * from './core'
-export * from './types'
+import { DocumentsAPI } from './documents-api'
+import { ReviewsAPI } from './reviews-api'
+import { DashboardAPI } from './dashboard-api'
+import { UploadAPI } from './upload-api'
 
-// Feature-specific API exports
-export * from './dashboard-api'
-export * from './reviews-api'
+// Core API classes
+export { DocumentsAPI, ReviewsAPI, DashboardAPI, UploadAPI }
 
-// Documents API exports (excluding uploadFiles to avoid conflict)
+// Individual function exports for convenience
 export {
-  fetchDocumentsData,
+  // Documents functions
   fetchFolderDetails,
   fetchFiles,
   createFolder,
   updateFolder,
+  deleteFile,
   deleteFolder,
   moveFile,
   getFileMarkdown,
+  uploadFiles,
   formatFileSize
 } from './documents-api'
 
-// Upload API exports
 export {
-  uploadFiles,
-  uploadFilesLegacy,
-  UploadAPI
-} from './upload-api'
-
-// Organized API object exports for backwards compatibility
-import { uploadFiles, uploadFilesLegacy } from './upload-api'
-import { 
-  fetchDocumentsData, 
-  fetchFolderDetails, 
-  fetchFiles, 
-  createFolder, 
-  updateFolder, 
-  deleteFolder, 
-  moveFile, 
-  getFileMarkdown
-} from './documents-api'
-import {
+  // Reviews functions - using actual exported names
   fetchReviewsData,
   fetchReview,
   fetchPaginatedReviews,
   createReview,
   deleteReview,
   addColumn,
-  updateColumn,
-  deleteColumn,
   addFiles,
+  updateColumn,
+  updateResult,
+  deleteColumn,
   startAnalysis,
   getAnalysisStatus,
-  updateResult,
   exportReview,
   getReviewStats,
   getReviewsSummary
 } from './reviews-api'
-import {
-  fetchDashboardData,
-  fetchDashboardStats,
-  fetchRecentActivity,
-  refreshDashboardData,
-  getUserSummary,
-  dashboardHealthCheck
+
+export {
+  // Dashboard functions
+  fetchDashboardData
 } from './dashboard-api'
 
-// Organized API objects
+export {
+  // Upload functions - using actual exported names
+  uploadFiles as uploadFilesToFolder,
+  uploadFilesLegacy
+} from './upload-api'
+
+// Organized API object exports
 export const files = {
-  upload: async (fileList: globalThis.File[], folderId?: string | null) => {
-    // Convert File[] to FormData for legacy upload
-    const formData = new FormData()
-    fileList.forEach(file => {
-      formData.append('files', file)
-    })
-    if (folderId) {
-      formData.append('folder_id', folderId)
-    }
-    
-    return uploadFilesLegacy(formData)
-  },
-  uploadFiles,
-  uploadFilesLegacy,
-  fetchFiles,
-  moveFile,
-  getMarkdown: getFileMarkdown
+  list: DocumentsAPI.fetchFiles,
+  upload: DocumentsAPI.uploadFiles,
+  delete: DocumentsAPI.deleteFile,
+  move: DocumentsAPI.moveFile,
+  getMarkdown: DocumentsAPI.getFileMarkdown
 }
 
 export const folders = {
-  fetch: fetchDocumentsData,
-  fetchDetails: fetchFolderDetails,
-  create: createFolder,
-  update: updateFolder,
-  delete: deleteFolder
+  create: DocumentsAPI.createFolder,
+  update: DocumentsAPI.updateFolder,
+  delete: DocumentsAPI.deleteFolder,
+  getDetails: DocumentsAPI.fetchFolderDetails
 }
 
 export const reviews = {
-  fetch: fetchReviewsData,
-  fetchOne: fetchReview,
-  fetchPaginated: fetchPaginatedReviews,
-  create: createReview,
-  delete: deleteReview,
-  addColumn,
-  updateColumn,
-  deleteColumn,
-  addFiles,
-  startAnalysis,
-  getStatus: getAnalysisStatus,
-  updateResult,
-  export: exportReview,
-  getStats: getReviewStats,
-  getSummary: getReviewsSummary
+  list: ReviewsAPI.fetchReviewsData,
+  get: ReviewsAPI.fetchReview,
+  getPaginated: ReviewsAPI.fetchPaginatedReviews,
+  create: ReviewsAPI.createReview,
+  delete: ReviewsAPI.deleteReview,
+  addColumn: ReviewsAPI.addColumn,
+  addFiles: ReviewsAPI.addFiles,
+  updateColumn: ReviewsAPI.updateColumn,
+  updateResult: ReviewsAPI.updateResult,
+  deleteColumn: ReviewsAPI.deleteColumn,
+  startAnalysis: ReviewsAPI.startAnalysis,
+  getAnalysisStatus: ReviewsAPI.getAnalysisStatus,
+  export: ReviewsAPI.exportReview,
+  getStats: ReviewsAPI.getReviewStats,
+  getSummary: ReviewsAPI.getReviewsSummary
 }
 
 export const dashboard = {
-  fetch: fetchDashboardData,
-  fetchStats: fetchDashboardStats,
-  fetchRecentActivity,
-  refresh: refreshDashboardData,
-  getUserSummary,
-  healthCheck: dashboardHealthCheck
+  getData: DashboardAPI.fetchDashboardData
 }
 
-// Default export for convenience
-const api = {
-  files,
-  folders,
-  reviews,
-  dashboard
+export const upload = {
+  toFolder: UploadAPI.uploadFiles,
+  legacy: UploadAPI.uploadFilesLegacy
 }
 
-export default api 
+// Re-export types for convenience
+export type * from './types' 

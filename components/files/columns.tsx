@@ -10,6 +10,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { files as fileApi } from "@/lib/api/index"
 import type { File } from "@/lib/api/types"
 
 export type FileTableRow = File & {
@@ -21,6 +31,49 @@ interface FileColumnsProps {
   onViewFile?: (file: File) => void
   onDeleteFile?: (fileId: string) => void
   onMoveFile?: (fileId: string) => void
+}
+
+// Utility function to get simple file extension display
+const getSimpleFileType = (filename: string, mimeType?: string): string => {
+  // Get extension from filename
+  const extension = filename.split('.').pop()?.toLowerCase()
+  
+  // Return simple extension if available
+  if (extension) {
+    // Convert some common extensions to more readable formats
+    switch (extension) {
+      case 'docx':
+      case 'doc':
+        return 'DOCX'
+      case 'xlsx':
+      case 'xls':
+        return 'XLSX'
+      case 'pptx':
+      case 'ppt':
+        return 'PPTX'
+      case 'pdf':
+        return 'PDF'
+      case 'txt':
+        return 'TXT'
+      case 'accdb':
+      case 'mdb':
+        return 'ACCESS'
+      default:
+        return extension.toUpperCase()
+    }
+  }
+  
+  // Fallback to MIME type mapping if no extension
+  if (mimeType) {
+    if (mimeType.includes('word')) return 'DOCX'
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'XLSX'
+    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'PPTX'
+    if (mimeType.includes('pdf')) return 'PDF'
+    if (mimeType.includes('text')) return 'TXT'
+    if (mimeType.includes('access')) return 'ACCESS'
+  }
+  
+  return 'FILE'
 }
 
 export const createFileColumns = ({ 
@@ -47,6 +100,8 @@ export const createFileColumns = ({
     },
     cell: ({ row }) => {
       const file = row.original
+      const simpleFileType = getSimpleFileType(file.original_filename, file.file_type)
+      
       return (
         <div 
           className="space-y-1 max-w-[12rem] sm:max-w-[20rem] cursor-pointer hover:text-blue-600 transition-colors"
@@ -59,9 +114,9 @@ export const createFileColumns = ({
             {file.original_filename}
           </div>
           <div className="text-xs text-gray-500">
-            {file.file_type && (
-              <span className="uppercase">{file.file_type}</span>
-            )}
+            <span className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-xs font-medium">
+              {simpleFileType}
+            </span>
           </div>
         </div>
       )
@@ -284,13 +339,45 @@ export const createFileColumns = ({
             )}
             <DropdownMenuSeparator />
             {onDeleteFile && (
-              <DropdownMenuItem 
-                onClick={() => onDeleteFile(file.id)}
-                className="text-red-600"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <DropdownMenuItem
+                    onSelect={(e) => e.preventDefault()}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Are you absolutely sure?</DialogTitle>
+                    <DialogDescription>
+                      This action cannot be undone. This will permanently delete the file "{file.original_filename}" from your account.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="outline">Cancel</Button>
+                    <Button
+                      variant="destructive"
+                      onClick={async () => {
+                        try {
+                          const result = await fileApi.delete(file.id)
+                          if (result.success) {
+                            onDeleteFile?.(file.id)
+                          } else {
+                            console.error('Failed to delete file:', result.error)
+                          }
+                        } catch (error) {
+                          console.error('Error deleting file:', error)
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             )}
           </DropdownMenuContent>
         </DropdownMenu>

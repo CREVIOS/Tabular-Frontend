@@ -165,21 +165,20 @@ export default function DocumentsPage() {
       setShowCreateFolder(true)
     },
     onDeleteFolder: async (folderId) => {
-      if (!confirm('Are you sure you want to delete this folder?')) return
-      
       try {
-        const response = await fetch(`/api/documents/${folderId}`, {
-          method: 'DELETE'
-        })
+        const { folders } = await import('@/lib/api/index')
+        const result = await folders.delete(folderId)
         
-        if (!response.ok) {
-          throw new Error('Failed to delete folder')
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to delete folder')
         }
         
+        // Update state to remove the deleted folder
         setFolders(prev => prev.filter(f => f.id !== folderId))
+        
       } catch (error) {
         console.error('Failed to delete folder:', error)
-        setError('Failed to delete folder')
+        setError(error instanceof Error ? error.message : 'Failed to delete folder')
       }
     },
     onUploadToFolder: (folderId) => {

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
+import { sanitizeFileName } from '@/lib/utils'
 import { 
   IconCloudUpload, 
   IconX, 
@@ -39,15 +40,6 @@ const MAX_CONCURRENT_UPLOADS = 5
 const MAX_RETRIES = 3
 const RETRY_DELAY = 1000
 
-function sanitizeFileName(name: string, maxLength: number = 100): string {
-  // Remove any characters not alphanumeric, dash, underscore, or dot
-  const sanitized = name
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/_{2,}/g, '_')
-    .substring(0, maxLength)
-  return sanitized
-}
-
 export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<FileWithStatus[]>([])
   const [uploading, setUploading] = useState(false)
@@ -59,19 +51,53 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const allowedTypes = [
+      // PDF
       'application/pdf',
+      
+      // Microsoft Word
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.template',
+      'application/vnd.ms-word.document.macroEnabled.12',
+      'application/vnd.ms-word.template.macroEnabled.12',
+      
+      // Microsoft Excel
       'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.template',
+      'application/vnd.ms-excel.sheet.macroEnabled.12',
+      'application/vnd.ms-excel.template.macroEnabled.12',
+      'application/vnd.ms-excel.addin.macroEnabled.12',
+      'application/vnd.ms-excel.sheet.binary.macroEnabled.12',
+      
+      // Microsoft PowerPoint
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.openxmlformats-officedocument.presentationml.template',
+      'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+      'application/vnd.ms-powerpoint.addin.macroEnabled.12',
+      'application/vnd.ms-powerpoint.presentation.macroEnabled.12',
+      'application/vnd.ms-powerpoint.template.macroEnabled.12',
+      'application/vnd.ms-powerpoint.slideshow.macroEnabled.12',
+      
+      // Microsoft Access
+      'application/vnd.ms-access',
+      
+      // Text files
+      'text/plain'
     ]
     
     const validFiles = acceptedFiles.filter(file => {
       if (allowedTypes.includes(file.type)) return true
       
       const extension = '.' + file.name.split('.').pop()?.toLowerCase()
-      const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx']
+      const allowedExtensions = [
+        '.pdf', '.doc', '.docx', '.dotx', '.docm', '.dotm',
+        '.xls', '.xlsx', '.xltx', '.xlsm', '.xltm', '.xlam', '.xlsb',
+        '.ppt', '.pptx', '.potx', '.ppsx', '.ppam', '.pptm', '.potm', '.ppsm',
+        '.mdb', '.accdb', '.accde', '.accdr', '.accdt',
+        '.txt'
+      ]
       return allowedExtensions.includes(extension)
     })
     
@@ -91,7 +117,7 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
     
     const rejectedCount = acceptedFiles.length - validFiles.length
     if (rejectedCount > 0) {
-      setError(`${rejectedCount} file(s) rejected. Only PDF, Word, Excel, and text files allowed.`)
+      setError(`${rejectedCount} file(s) rejected. Only PDF, Microsoft Office, and text files allowed.`)
       setTimeout(() => setError(null), 5000)
     }
   }, [])
@@ -102,9 +128,26 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
       'application/pdf': ['.pdf'],
       'application/msword': ['.doc'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'text/plain': ['.txt'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.template': ['.dotx'],
+      'application/vnd.ms-word.document.macroEnabled.12': ['.docm'],
+      'application/vnd.ms-word.template.macroEnabled.12': ['.dotm'],
       'application/vnd.ms-excel': ['.xls'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.template': ['.xltx'],
+      'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
+      'application/vnd.ms-excel.template.macroEnabled.12': ['.xltm'],
+      'application/vnd.ms-excel.addin.macroEnabled.12': ['.xlam'],
+      'application/vnd.ms-excel.sheet.binary.macroEnabled.12': ['.xlsb'],
+      'application/vnd.ms-powerpoint': ['.ppt'],
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+      'application/vnd.openxmlformats-officedocument.presentationml.template': ['.potx'],
+      'application/vnd.openxmlformats-officedocument.presentationml.slideshow': ['.ppsx'],
+      'application/vnd.ms-powerpoint.addin.macroEnabled.12': ['.ppam'],
+      'application/vnd.ms-powerpoint.presentation.macroEnabled.12': ['.pptm'],
+      'application/vnd.ms-powerpoint.template.macroEnabled.12': ['.potm'],
+      'application/vnd.ms-powerpoint.slideshow.macroEnabled.12': ['.ppsm'],
+      'application/vnd.ms-access': ['.mdb', '.accdb'],
+      'text/plain': ['.txt']
     },
     maxSize: 50 * 1024 * 1024,
     multiple: true
@@ -193,43 +236,7 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
     }
   }
 
-  const getStatusIcon = (file: FileWithStatus) => {
-    switch (file.status) {
-      case 'pending':
-        return null
-      case 'uploading':
-      case 'processing':
-        return <IconLoader2 className="h-4 w-4 animate-spin text-blue-500 flex-shrink-0" />
-      case 'retrying':
-        return <IconRefresh className="h-4 w-4 animate-spin text-orange-500 flex-shrink-0" />
-      case 'retry_pending':
-        return <IconRefresh className="h-4 w-4 text-orange-500 flex-shrink-0" />
-      case 'completed':
-        return <IconCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
-      case 'failed':
-        return <IconExclamationMark className="h-4 w-4 text-red-500 flex-shrink-0" />
-    }
-  }
-
-  const getStatusText = (file: FileWithStatus) => {
-    switch (file.status) {
-      case 'pending':
-        return 'Ready to upload'
-      case 'uploading':
-        return `Uploading... ${file.progress}%`
-      case 'processing':
-        return `Processing... ${file.progress}%`
-      case 'retrying':
-        return `Retrying... (${file.retries + 1}/${MAX_RETRIES})`
-      case 'retry_pending':
-        return `Retry ${file.retries + 1}/${MAX_RETRIES} pending...`
-      case 'completed':
-        return 'Upload completed'
-      case 'failed':
-        return `Failed after ${file.retries} retries`
-    }
-  }
-
+  // Format file size helper
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'
     const k = 1024
@@ -250,7 +257,7 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
+        accept=".pdf,.doc,.docx,.dotx,.docm,.dotm,.xls,.xlsx,.xltx,.xlsm,.xltm,.xlam,.xlsb,.ppt,.pptx,.potx,.ppsx,.ppam,.pptm,.potm,.ppsm,.mdb,.accdb,.accde,.accdr,.accdt,.txt"
         onChange={handleFileInputChange}
         className="hidden"
       />
@@ -271,54 +278,54 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
         <CardContent className="p-4 sm:p-6">
           <div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center cursor-pointer transition-colors touch-manipulation ${
+            className={`border-2 border-dashed rounded-lg p-6 sm:p-8 lg:p-12 text-center cursor-pointer transition-colors touch-manipulation ${
               isDragActive
                 ? 'border-primary bg-primary/5'
                 : 'border-muted-foreground/25 hover:border-primary/50'
             }`}
           >
             <input {...getInputProps()} />
-            <IconCloudUpload className="mx-auto h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground mb-2 sm:mb-3 lg:mb-4" />
+            <IconCloudUpload className="mx-auto h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 text-muted-foreground mb-3 sm:mb-4 lg:mb-6" />
             {isDragActive ? (
-              <p className="text-sm sm:text-base">Drop the files here...</p>
+              <p className="text-base sm:text-lg lg:text-xl">Drop the files here...</p>
             ) : (
-              <div className="space-y-2 sm:space-y-3">
-                <p className="text-base sm:text-lg lg:text-xl font-medium">
+              <div className="space-y-3 sm:space-y-4 lg:space-y-6">
+                <p className="text-lg sm:text-xl lg:text-2xl font-medium">
                   Drop files or folders here
                 </p>
-                <p className="text-xs sm:text-sm text-muted-foreground px-2">
-                  PDF, Word, Excel, and text files (max 50MB each)
+                <p className="text-sm sm:text-base text-muted-foreground px-2 max-w-md mx-auto">
+                  PDF, Microsoft Office (Word, Excel, PowerPoint, Access), and text files (max 50MB each)
                   <br className="hidden sm:block" />
                   <span className="sm:hidden"> </span>
                   Concurrent uploads with automatic retry
                 </p>
                 
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center pt-2">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center pt-3 sm:pt-4">
                   <Button 
                     variant="outline" 
-                    size="sm"
-                    className="w-full sm:w-auto min-h-[44px] sm:min-h-[36px] touch-manipulation"
+                    size="lg"
+                    className="w-full sm:w-auto min-h-[48px] sm:min-h-[44px] touch-manipulation"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleFileSelect()
                     }}
                     disabled={uploading}
                   >
-                    <IconFiles className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <IconFiles className="h-5 w-5 mr-2 flex-shrink-0" />
                     <span>Select Files</span>
                   </Button>
                   
                   <Button 
                     variant="outline" 
-                    size="sm"
-                    className="w-full sm:w-auto min-h-[44px] sm:min-h-[36px] touch-manipulation"
+                    size="lg"
+                    className="w-full sm:w-auto min-h-[48px] sm:min-h-[44px] touch-manipulation"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleFolderSelect()
                     }}
                     disabled={uploading}
                   >
-                    <IconFolder className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <IconFolder className="h-5 w-5 mr-2 flex-shrink-0" />
                     <span>Select Folder</span>
                   </Button>
                 </div>
@@ -381,48 +388,32 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
             
             <div className="space-y-2 sm:space-y-3 max-h-60 sm:max-h-80 overflow-y-auto">
               {selectedFiles.map((fileWithStatus) => (
-                <div key={fileWithStatus.id} className="p-3 sm:p-4 bg-muted rounded-lg border">
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <div className="flex-1 min-w-0 space-y-1 sm:space-y-2">
-                      {/* File name and status */}
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium break-words leading-tight word-wrap overflow-wrap-anywhere">
-                            {fileWithStatus.file.name}
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0 mt-0.5">
-                          {getStatusIcon(fileWithStatus)}
+                <div key={fileWithStatus.id} className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconFiles className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p 
+                          className="font-medium text-gray-900 text-sm break-words leading-tight"
+                          style={{ 
+                            wordBreak: 'break-all',
+                            overflowWrap: 'anywhere',
+                            lineHeight: '1.3'
+                          }}
+                          title={fileWithStatus.file.name}
+                        >
+                          {fileWithStatus.file.name}
+                        </p>
+                        <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-2">
+                          <span>{fileWithStatus.file.type || 'Unknown type'}</span>
+                          <span>•</span>
+                          <span>{formatFileSize(fileWithStatus.file.size)}</span>
                         </div>
                       </div>
-                      
-                      {/* File info and status */}
-                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
-                        <span className="bg-background px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs border flex-shrink-0">
-                          {fileWithStatus.file.type?.split('/')[1]?.toUpperCase() || 'FILE'}
-                        </span>
-                        <span className="flex-shrink-0">{formatFileSize(fileWithStatus.file.size)}</span>
-                        <span className="text-foreground text-xs min-w-0 break-words">
-                          {getStatusText(fileWithStatus)}
-                        </span>
-                      </div>
-                      
-                      {/* Progress bar */}
-                      {['uploading', 'processing', 'retrying'].includes(fileWithStatus.status) && (
-                        <div className="w-full">
-                          <Progress value={fileWithStatus.progress} className="h-1.5 sm:h-2" />
-                        </div>
-                      )}
-                      
-                      {/* Error message */}
-                      {fileWithStatus.status === 'failed' && fileWithStatus.error && (
-                        <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 break-words">
-                          {fileWithStatus.error}
-                        </div>
-                      )}
                     </div>
-                    
-                    {/* Actions */}
+
                     <div className="flex flex-col sm:flex-row gap-1">
                       {fileWithStatus.status === 'failed' && (
                         <Button
@@ -450,6 +441,29 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Progress bar */}
+                  {['uploading', 'processing', 'retrying'].includes(fileWithStatus.status) && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600 capitalize">
+                          {fileWithStatus.status === 'retrying' ? 
+                            `Retrying (${fileWithStatus.retries}/${MAX_RETRIES})` : 
+                            fileWithStatus.status
+                          }
+                        </span>
+                        <span className="text-gray-600">{fileWithStatus.progress}%</span>
+                      </div>
+                      <Progress value={fileWithStatus.progress} className="h-2" />
+                    </div>
+                  )}
+
+                  {/* Error display */}
+                  {fileWithStatus.status === 'failed' && fileWithStatus.error && (
+                    <div className="text-xs text-red-600 px-3 py-2 bg-red-50 rounded border border-red-200 break-words">
+                      {fileWithStatus.error}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

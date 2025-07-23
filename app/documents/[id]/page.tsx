@@ -170,17 +170,15 @@ export default function FolderDetailPage() {
   }, [router, folderId])
 
   const handleDeleteFile = useCallback(async (fileId: string): Promise<void> => {
-    if (!confirm('Are you sure you want to delete this file?')) return
-    
     try {
-      const response = await fetch(`/api/files/${fileId}`, {
-        method: 'DELETE'
-      })
+      const { files } = await import('@/lib/api/index')
+      const result = await files.delete(fileId)
       
-      if (!response.ok) {
-        throw new Error('Failed to delete file')
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete file')
       }
       
+      // Update state to remove the deleted file
       setState(prev => {
         const fileToDelete = prev.files.find(f => f.id === fileId)
         const updatedFiles = prev.files.filter(f => f.id !== fileId)
