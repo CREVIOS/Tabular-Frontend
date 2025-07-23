@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Download,
   GripVertical,
+  RotateCcw,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -69,6 +70,8 @@ interface CreateColumnsProps {
   processingCells: Set<string>
   onCellClick: (fileId: string, columnId: string, result: ReviewResult) => void
   onViewFile: (fileId: string) => void
+  onRerunAnalysis: (fileId: string, reviewId: string) => void
+  reviewId: string
   isMobile?: boolean
 }
 
@@ -91,6 +94,8 @@ export function createColumns({
   processingCells,
   onCellClick,
   onViewFile,
+  onRerunAnalysis,
+  reviewId,
 }: CreateColumnsProps): ColumnDef<ReviewTableRow>[] {
   
   const baseColumns: ColumnDef<ReviewTableRow>[] = [
@@ -149,6 +154,7 @@ export function createColumns({
         const fileId = row.original.file.file_id
         const handleViewFile = () => onViewFile(fileId)
         const handleCopyId = () => navigator.clipboard.writeText(fileId)
+        const handleRerunAnalysis = () => onRerunAnalysis(fileId, reviewId)
 
         return (
           <DropdownMenu>
@@ -169,6 +175,10 @@ export function createColumns({
                 Download File
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleRerunAnalysis}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Rerun Analysis
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleCopyId}>
                 Copy File ID
               </DropdownMenuItem>
