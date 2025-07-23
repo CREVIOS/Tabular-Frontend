@@ -285,8 +285,9 @@ export function DataTable({
       const wb = XLSX.utils.book_new()
       const exportData: (string | number | null)[][] = []
       
-      // Build headers based on configuration
+      // Build headers and prompts based on configuration
       const headers = ['Document']
+      const prompts = ['File Name']
       const selectedReviewColumns = reviewColumns?.filter(col => 
         exportConfig.selectedColumns.includes(col.id)
       ) || []
@@ -295,25 +296,34 @@ export function DataTable({
         if (exportConfig.answerType === 'both') {
           headers.push(`${column.column_name} (Short)`)
           headers.push(`${column.column_name} (Long)`)
+          prompts.push(column.prompt)
+          prompts.push(column.prompt)
           if (exportConfig.includeConfidence) {
             headers.push(`${column.column_name} (Confidence)`)
+            prompts.push('Confidence Score (%)')
           }
           if (exportConfig.includeSource) {
             headers.push(`${column.column_name} (Source)`)
+            prompts.push('Source Reference')
           }
         } else {
           const suffix = exportConfig.answerType === 'long' ? ' (Long)' : ''
           headers.push(`${column.column_name}${suffix}`)
+          prompts.push(column.prompt)
           if (exportConfig.includeConfidence) {
             headers.push(`${column.column_name} (Confidence)`)
+            prompts.push('Confidence Score (%)')
           }
           if (exportConfig.includeSource) {
             headers.push(`${column.column_name} (Source)`)
+            prompts.push('Source Reference')
           }
         }
       })
       
+      // Add headers and prompts to export data
       exportData.push(headers)
+      exportData.push(prompts)
       
       // Build rows based on configuration
       filteredData.forEach(row => {
@@ -357,20 +367,88 @@ export function DataTable({
       
       const ws = XLSX.utils.aoa_to_sheet(exportData)
       
-      // Set column widths
+      // Enhanced formatting for Excel export
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
+      
+      // Set column widths with better sizing
       const colWidths = headers.map((header: string, index: number) => {
         if (index === 0) return { wch: 35 } // Document column
         
-        let maxWidth = header.length
-        exportData.slice(1, 6).forEach(row => { 
+        let maxWidth = Math.max(header.length, prompts[index]?.length || 0)
+        exportData.slice(2).forEach(row => { 
           if (row[index] && typeof row[index] === 'string') {
-            maxWidth = Math.max(maxWidth, row[index].length)
+            const cellLength = row[index].toString().length
+            maxWidth = Math.max(maxWidth, Math.min(cellLength, 60)) // Cap at 60 chars
           }
         })
         
-        return { wch: Math.min(Math.max(maxWidth + 2, 15), 50) } 
+        return { wch: Math.min(Math.max(maxWidth + 3, 20), 60) } 
       })
       ws['!cols'] = colWidths
+      
+      // Apply formatting to headers and cells
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        // Format header row (row 0)
+        const headerAddress = XLSX.utils.encode_cell({ r: 0, c: C })
+        if (!ws[headerAddress]) continue
+        ws[headerAddress].s = {
+          font: { bold: true, color: { rgb: "333333" } },
+          fill: { fgColor: { rgb: "ADD8E6" } },
+          alignment: { horizontal: "center", vertical: "center", wrapText: true },
+          border: {
+            top: { style: "thin", color: { rgb: "000000" } },
+            bottom: { style: "thin", color: { rgb: "000000" } },
+            left: { style: "thin", color: { rgb: "000000" } },
+            right: { style: "thin", color: { rgb: "000000" } }
+          }
+        }
+        
+        // Format prompt row (row 1)
+        const promptAddress = XLSX.utils.encode_cell({ r: 1, c: C })
+        if (!ws[promptAddress]) continue
+        ws[promptAddress].s = {
+          font: { italic: true, color: { rgb: "333333" } },
+          fill: { fgColor: { rgb: "F2F2F2" } },
+          alignment: { horizontal: "left", vertical: "top", wrapText: true },
+          border: {
+            top: { style: "thin", color: { rgb: "CCCCCC" } },
+            bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+            left: { style: "thin", color: { rgb: "CCCCCC" } },
+            right: { style: "thin", color: { rgb: "CCCCCC" } }
+          }
+        }
+      }
+      
+      // Format data cells with wrapping
+      for (let R = 2; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C })
+          if (!ws[cellAddress]) continue
+          ws[cellAddress].s = {
+            alignment: { 
+              horizontal: C === 0 ? "left" : "left", 
+              vertical: "top", 
+              wrapText: true 
+            },
+            border: {
+              top: { style: "thin", color: { rgb: "E0E0E0" } },
+              bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+              left: { style: "thin", color: { rgb: "E0E0E0" } },
+              right: { style: "thin", color: { rgb: "E0E0E0" } }
+            }
+          }
+          
+          // Add alternating row colors
+          if (R % 2 === 0) {
+            ws[cellAddress].s.fill = { fgColor: { rgb: "F9F9F9" } }
+          }
+        }
+      }
+      
+      // Set row heights for better readability
+      if (!ws['!rows']) ws['!rows'] = []
+      ws['!rows'][0] = { hpt: 25 } // Header row height
+      ws['!rows'][1] = { hpt: 40 } // Prompt row height (taller for wrapping)
       
       XLSX.utils.book_append_sheet(wb, ws, 'Review Data')
       
