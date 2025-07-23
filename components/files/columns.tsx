@@ -352,8 +352,12 @@ export const createFileColumns = ({
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Are you absolutely sure?</DialogTitle>
-                    <DialogDescription>
-                      This action cannot be undone. This will permanently delete the file "{file.original_filename}" from your account.
+                    <DialogDescription className="space-y-2">
+                      <span>This action cannot be undone. This will permanently delete the file:</span>
+                      <div className="mt-2 p-2 bg-gray-50 rounded border">
+                        <span className="font-mono text-sm break-all">{file.original_filename}</span>
+                      </div>
+                      <span>from your account.</span>
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>

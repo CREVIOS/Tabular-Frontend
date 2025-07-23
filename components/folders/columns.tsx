@@ -74,8 +74,12 @@ const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({ folder, onDelet
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete Folder</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to delete the folder "{folder.name}"? This action cannot be undone. The folder must be empty to be deleted.
+          <DialogDescription className="space-y-2">
+            <span>Are you sure you want to delete the folder:</span>
+            <div className="mt-2 p-2 bg-gray-50 rounded border">
+              <span className="font-medium text-sm break-all">{folder.name}</span>
+            </div>
+            <span>This action cannot be undone. The folder must be empty to be deleted.</span>
           </DialogDescription>
         </DialogHeader>
         {deleteError && (

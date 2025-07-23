@@ -641,7 +641,10 @@ export default function EnhancedCreateReview({
                                         <div key={file.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
                                           <FileText className="h-4 w-4 text-gray-600 flex-shrink-0" />
                                           <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-gray-900 break-words">
+                                            <p 
+                                              className="text-sm font-medium text-gray-900 truncate"
+                                              title={file.original_filename}
+                                            >
                                               {file.original_filename}
                                             </p>
                                             <p className="text-xs text-gray-500">

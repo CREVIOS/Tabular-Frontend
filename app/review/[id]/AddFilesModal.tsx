@@ -380,7 +380,10 @@ export default function AddFilesModal({
                         <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <h4 className="font-medium text-sm break-words">
+                            <h4 
+                              className="font-medium text-sm truncate" 
+                              title={file.file_name}
+                            >
                               {file.file_name}
                             </h4>
                             
