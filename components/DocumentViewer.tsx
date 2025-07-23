@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { X, FileText, BookOpen, Download, RefreshCw, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react'
+import { X, BookOpen, Download, RefreshCw, AlertCircle, CheckCircle, ExternalLink, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -7,6 +7,18 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'
 import { SelectedCell } from '../types'
+
+// Extend Window interface for PDF.js
+declare global {
+  interface Window {
+    pdfjsLib?: {
+      GlobalWorkerOptions: {
+        workerSrc: string;
+      };
+      disableWorker?: boolean;
+    };
+  }
+}
 
 interface DocumentViewerProps {
   selectedCell: SelectedCell | null
@@ -39,13 +51,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
   // Configure PDF.js to avoid worker errors
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && window.pdfjsLib) {
       // Disable PDF.js worker to avoid CORS and loading issues
-      const pdfjsLib = (window as any).pdfjsLib;
-      if (pdfjsLib) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-        pdfjsLib.disableWorker = true;
-      }
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+      window.pdfjsLib.disableWorker = true;
     }
   }, []);
 

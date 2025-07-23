@@ -5,11 +5,9 @@ import { useCallback } from "react"
 import {
   ArrowUpDown,
   MoreHorizontal,
-  Eye,
   FileText,
   Loader2,
   AlertCircle,
-  Download,
   GripVertical,
   RotateCcw,
 } from "lucide-react"
@@ -21,7 +19,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -69,7 +66,6 @@ interface CreateColumnsProps {
   realTimeUpdates: RealTimeUpdates
   processingCells: Set<string>
   onCellClick: (fileId: string, columnId: string, result: ReviewResult) => void
-  onViewFile: (fileId: string) => void
   onRerunAnalysis: (fileId: string, reviewId: string) => void
   reviewId: string
   isMobile?: boolean
@@ -92,8 +88,7 @@ export function createColumns({
   columns,
   realTimeUpdates,
   processingCells,
-  onCellClick,
-  onViewFile,
+  onCellClick,    
   onRerunAnalysis,
   reviewId,
 }: CreateColumnsProps): ColumnDef<ReviewTableRow>[] {
@@ -152,8 +147,6 @@ export function createColumns({
       size: 80,
       cell: ({ row }) => {
         const fileId = row.original.file.file_id
-        const handleViewFile = () => onViewFile(fileId)
-        const handleCopyId = () => navigator.clipboard.writeText(fileId)
         const handleRerunAnalysis = () => onRerunAnalysis(fileId, reviewId)
 
         return (
@@ -165,22 +158,9 @@ export function createColumns({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel>File Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleViewFile}>
-                <Eye className="mr-2 h-4 w-4" />
-                View Document
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Download className="mr-2 h-4 w-4" />
-                Download File
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleRerunAnalysis}>
                 <RotateCcw className="mr-2 h-4 w-4" />
-                Rerun Analysis
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleCopyId}>
-                Copy File ID
+                Rerun
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

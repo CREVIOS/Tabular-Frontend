@@ -5,7 +5,6 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { 
   ArrowLeft, 
-  FileText, 
   AlertCircle, 
   CheckCircle
 } from 'lucide-react'
