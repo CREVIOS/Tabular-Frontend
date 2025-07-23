@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js'
 import { fetchDashboardData, fetchRecentActivity } from '@/lib/api/dashboard-api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { PageHeaderSkeleton, DataTableSkeleton } from '@/components/ui/loading-skeletons'
 import { 
   IconFile, 
   IconClock, 
@@ -138,10 +139,28 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen mx-auto p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4">Loading dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+          <PageHeaderSkeleton />
+          
+          {/* Stats Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 bg-gray-200 rounded animate-pulse" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-6 bg-gray-200 rounded animate-pulse w-8" />
+                      <div className="h-3 bg-gray-200 rounded animate-pulse w-16" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          <DataTableSkeleton />
         </div>
       </div>
     )

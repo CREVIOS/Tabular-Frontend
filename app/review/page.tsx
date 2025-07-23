@@ -5,7 +5,6 @@
 import React, { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { 
-  RefreshCw, 
   Plus, 
   BarChart3,
 } from 'lucide-react'
@@ -20,25 +19,14 @@ import { fetchReviewsData } from '@/lib/api/reviews-api'
 import { ReviewDataTable } from '../../components/review-list/data-table'
 import { createReviewColumns, ReviewTableRow } from '../../components/review-list/columns'
 import EnhancedCreateReview from '../../components/CreateReview'
+import { ReviewsTableSkeleton, PageLoadingSkeleton } from '@/components/ui/loading-skeletons'
 
 // Types
 import { Review } from '../../types'
 
 // Loading component for Suspense fallback
 function ReviewPageLoading() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="text-center">
-            <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Reviews</h3>
-            <p className="text-gray-600">Initializing review page...</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  return <PageLoadingSkeleton />
 }
 
 // Main component that uses useSearchParams
@@ -132,20 +120,9 @@ function TabularReviewPageContent() {
     router.push(`/review/${reviewId}`)         
   }
 
+  // Loading state
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-center h-[60vh]">
-            <div className="text-center">
-              <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Reviews</h3>
-              <p className="text-gray-600">Fetching your tabular reviews...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    return <ReviewsTableSkeleton />
   }
 
   if (isCreatingReview) {
