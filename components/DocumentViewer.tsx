@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { X, FileText, Info, BookOpen, Download } from 'lucide-react'
+import { X, FileText, BookOpen, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'
 import { SelectedCell } from '../types'
@@ -55,9 +55,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           return
         }
 
-        // Call the API route to get file info and signed URL
+        // Call the simplified API route to get file info and signed URL
         console.log('Fetching new signed URL for file:', selectedCell.fileId)
-        const response = await fetch(`/api/files/${selectedCell.fileId}/signed-url`)
+        const response = await fetch(`/api/file-url?fileId=${selectedCell.fileId}`)
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
@@ -122,215 +122,137 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       onClick={handleBackdropClick}
     >
       <div 
-        className={`bg-white rounded-xl w-full ${isMobile ? 'max-w-[95vw] max-h-[90vh]' : 'max-w-6xl max-h-[90vh]'} flex flex-col shadow-2xl overflow-hidden`}
+        className={`bg-white rounded-lg w-full ${isMobile ? 'max-w-[95vw] h-[90vh]' : 'max-w-4xl h-[85vh]'} flex flex-col shadow-xl overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className={`flex items-center justify-between border-b border-gray-200 flex-shrink-0 ${isMobile ? 'p-4' : 'p-6'}`}>
-          <div className="flex items-center space-x-3 min-w-0">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="h-5 w-5 text-blue-600" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-lg' : 'text-xl'}`}>
-                {loading ? 'Loading Document...' : fileInfo?.original_filename || 'Document Viewer'}
-              </h3>
-              <p className={`text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                {fileInfo?.file_size ? `${(fileInfo.file_size / 1024 / 1024).toFixed(1)} MB` : 'Document and analysis results'}
-              </p>
-            </div>
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-3">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+            <h2 className="font-semibold">
+              {loading ? 'Loading...' : fileInfo?.original_filename || 'Document'}
+            </h2>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-1">
             {documentUrl && fileInfo && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleDownload}
-                className="flex-shrink-0 hover:bg-gray-100"
-                type="button"
-              >
+              <Button variant="ghost" size="sm" onClick={handleDownload}>
                 <Download className="h-4 w-4" />
               </Button>
             )}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleCloseClick}
-              className={`flex-shrink-0 hover:bg-gray-100 touch-target ${isMobile ? 'h-10 w-10 p-0' : 'h-9 w-9 p-0'}`}
-              type="button"
-            >
+            <Button variant="ghost" size="sm" onClick={handleCloseClick}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
         
-        {/* Tabbed Content */}
-        <div className="flex-1 overflow-hidden">
-          <Tabs defaultValue="document" className="h-full flex flex-col">
-            <div className="border-b border-gray-200 px-6 pt-4">
-              <TabsList className="grid w-full max-w-md grid-cols-2">
-                <TabsTrigger value="document" className="flex items-center space-x-2">
-                  <FileText className="h-4 w-4" />
-                  <span>Document</span>
-                </TabsTrigger>
-                <TabsTrigger value="analysis" className="flex items-center space-x-2">
-                  <BookOpen className="h-4 w-4" />
-                  <span>Analysis</span>
-                </TabsTrigger>
-              </TabsList>
+        {/* Content */}
+        <Tabs defaultValue="analysis" className="flex-1 flex flex-col">
+          <div className="px-4 pt-3">
+            <TabsList className="grid w-full max-w-xs grid-cols-2">
+              <TabsTrigger value="analysis">Analysis</TabsTrigger>
+              <TabsTrigger value="document">Document</TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* Analysis Tab */}
+          <TabsContent value="analysis" className="flex-1 overflow-hidden mt-3">
+            <div className="h-full overflow-y-auto px-4 pb-4 space-y-4">
+              {/* Quick Answer */}
+              {hasDetailedAnswer && selectedCell.value && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h3 className="font-medium text-green-800 mb-2">Quick Answer</h3>
+                  <p className="text-sm text-green-700">{selectedCell.value}</p>
+                </div>
+              )}
+
+              {/* Main Analysis */}
+              <div className="space-y-3">
+                <h3 className="font-medium">
+                  {hasDetailedAnswer ? 'Detailed Analysis' : 'Extracted Information'}
+                </h3>
+                <div className="bg-gray-50 border rounded-lg p-3 max-h-48 overflow-y-auto">
+                  <p className="text-sm whitespace-pre-wrap">{displayValue}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Source Reference */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Source Reference</h4>
+                <div className="bg-gray-50 border rounded-lg p-3 max-h-32 overflow-y-auto">
+                  <p className="text-xs text-muted-foreground">{selectedCell.sourceRef}</p>
+                </div>
+              </div>
+
+              {/* Confidence Score */}
+              {selectedCell.confidence && (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Confidence</h4>
+                  <Badge 
+                    variant={selectedCell.confidence > 0.8 ? 'default' : selectedCell.confidence > 0.5 ? 'secondary' : 'destructive'}
+                  >
+                    {Math.round(selectedCell.confidence * 100)}%
+                  </Badge>
+                </div>
+              )}
             </div>
+          </TabsContent>
 
-            {/* Document Tab */}
-            <TabsContent value="document" className="flex-1 overflow-hidden m-0">
-              <div className="h-full p-6">
-                {loading && (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                      <p className="text-gray-600">Loading document...</p>
-                    </div>
+          {/* Document Tab */}
+          <TabsContent value="document" className="flex-1 overflow-hidden mt-3">
+            <div className="h-full p-4">
+              {loading && (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Loading document...</p>
                   </div>
-                )}
-                
-                {error && (
-                  <div className="flex items-center justify-center h-full">
-                    <Card className="border-red-200 bg-red-50/50 max-w-md">
-                      <CardContent className="p-6 text-center">
-                        <p className="text-red-800 mb-4">Failed to load document</p>
-                        <p className="text-sm text-red-600">{error}</p>
-                      </CardContent>
-                    </Card>
+                </div>
+              )}
+              
+              {error && (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center border border-red-200 bg-red-50 rounded-lg p-6 max-w-md">
+                    <p className="text-red-800 font-medium">Failed to load document</p>
+                    <p className="text-sm text-red-600 mt-1">{error}</p>
                   </div>
-                )}
-                
-                {!loading && !error && documentUrl && fileInfo && (
-                  <div className="h-full border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-                    <DocViewer
-                      documents={[{
-                        uri: documentUrl,
-                        fileName: fileInfo.original_filename,
-                      }]}
-                      pluginRenderers={DocViewerRenderers}
-                      config={{
-                        header: {
-                          disableFileName: true,
-                          disableHeader: false,
-                        },
-                        pdfZoom: {
-                          defaultZoom: 1.0,
-                          zoomJump: 0.2,
-                        },
-                      }}
-                      style={{ height: '100%' }}
-                      theme={{
-                        primary: "#3b82f6",
-                        secondary: "#ffffff",
-                        tertiary: "#f3f4f6",
-                        textPrimary: "#111827",
-                        textSecondary: "#6b7280",
-                        textTertiary: "#9ca3af",
-                        disableThemeScrollbar: false,
-                      }}
-                    />
+                </div>
+              )}
+              
+              {!loading && !error && documentUrl && fileInfo && (
+                <div className="h-full border rounded-lg overflow-hidden">
+                  <DocViewer
+                    documents={[{
+                      uri: documentUrl,
+                      fileName: fileInfo.original_filename,
+                    }]}
+                    pluginRenderers={DocViewerRenderers}
+                    config={{
+                      header: { disableFileName: true },
+                      pdfZoom: { defaultZoom: 1.0, zoomJump: 0.2 },
+                    }}
+                    style={{ height: '100%' }}
+                    theme={{
+                      primary: "hsl(var(--primary))",
+                      secondary: "hsl(var(--background))",
+                      tertiary: "hsl(var(--muted))",
+                    }}
+                  />
+                </div>
+              )}
+              
+              {!loading && !error && !documentUrl && (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center border border-yellow-200 bg-yellow-50 rounded-lg p-6 max-w-md">
+                    <p className="text-yellow-800 font-medium">Document not available</p>
+                    <p className="text-sm text-yellow-600 mt-1">The document may not be stored or accessible.</p>
                   </div>
-                )}
-                
-                {!loading && !error && !documentUrl && (
-                  <div className="flex items-center justify-center h-full">
-                    <Card className="border-yellow-200 bg-yellow-50/50 max-w-md">
-                      <CardContent className="p-6 text-center">
-                        <p className="text-yellow-800">Document not available for preview</p>
-                        <p className="text-sm text-yellow-600 mt-2">The document may not be stored or accessible.</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            {/* Analysis Tab */}
-            <TabsContent value="analysis" className="flex-1 overflow-auto m-0">
-              <div className={`space-y-4 ${isMobile ? 'p-4' : 'p-6 space-y-6'}`}>
-                {/* Show short answer if we have detailed answer */}
-                {hasDetailedAnswer && selectedCell.value && (
-                  <Card className="border-green-200 bg-green-50/50">
-                    <CardHeader className={isMobile ? 'pb-2 p-4' : 'pb-3'}>
-                      <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-base' : 'text-lg'}`}>
-                        <Info className="h-5 w-5 text-green-600" />
-                        <span>Quick Answer</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className={`${isMobile ? 'p-4 pt-0' : ''}`}>
-                      <div className="bg-white p-4 rounded-lg border border-green-200">
-                        <p className={`text-gray-900 leading-relaxed break-words font-medium ${isMobile ? 'text-sm' : ''}`}>
-                          {selectedCell.value}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Detailed Analysis Card */}
-                <Card className="border-blue-200 bg-blue-50/50">
-                  <CardHeader className={isMobile ? 'pb-2 p-4' : 'pb-3'}>
-                    <CardTitle className={`flex items-center space-x-2 ${isMobile ? 'text-base' : 'text-lg'}`}>
-                      <BookOpen className="h-5 w-5 text-blue-600" />
-                      <span>{hasDetailedAnswer ? 'Detailed Analysis' : 'Extracted Information'}</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className={`space-y-3 ${isMobile ? 'p-4 pt-0' : 'space-y-4'}`}>
-                    <div>
-                      <label className={`text-gray-700 block mb-2 font-semibold ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                        {hasDetailedAnswer ? 'Full Analysis:' : 'Extracted Value:'}
-                      </label>
-                      <div className="bg-white p-4 rounded-lg border border-blue-200 max-h-64 overflow-y-auto">
-                        <p className={`text-gray-900 leading-relaxed break-words whitespace-pre-wrap ${isMobile ? 'text-sm' : ''}`}>
-                          {displayValue}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
-                      <div>
-                        <label className={`text-gray-700 block mb-2 font-semibold ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                          Source Reference:
-                        </label>
-                        <div className="bg-white p-3 rounded-lg border border-blue-200 max-h-32 overflow-y-auto">
-                          <p className={`text-gray-600 break-words ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                            {selectedCell.sourceRef}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {selectedCell.confidence && (
-                        <div>
-                          <label className={`text-gray-700 block mb-2 font-semibold ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                            Confidence Score:
-                          </label>
-                          <div className="bg-white p-3 rounded-lg border border-blue-200">
-                            <Badge 
-                              variant={selectedCell.confidence > 0.8 ? 'default' : selectedCell.confidence > 0.5 ? 'secondary' : 'destructive'}
-                              className="text-sm"
-                            >
-                              {Math.round(selectedCell.confidence * 100)}% confident
-                            </Badge>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        {/* Footer */}
-        <div className={`flex justify-end border-t border-gray-200 bg-gray-50/50 flex-shrink-0 ${isMobile ? 'p-4' : 'p-6'}`}>
-          <Button onClick={handleCloseClick} className={`touch-target ${isMobile ? 'px-6 h-11' : 'px-6'}`} type="button">
-            Close
-          </Button>
-        </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
