@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 
-// Create Supabase client with service key for server-side operations
+export const dynamic = 'force-dynamic'
+
+// Create Supabase client with service key
 function createServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -16,56 +16,15 @@ function createServiceClient() {
   })
 }
 
-// Create authenticated server client
-async function createAuthClient() {
-  const cookieStore = await cookies()
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-  return createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // Ignore cookie setting errors in server components
-          }
-        },
-      },
-    }
-  )
-}
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { id: fileId } = await params
+    const { searchParams } = new URL(request.url)
+    const fileId = searchParams.get('fileId')
     
     if (!fileId) {
       return NextResponse.json(
         { error: 'File ID is required' },
         { status: 400 }
-      )
-    }
-
-    // Check authentication
-    const authClient = await createAuthClient()
-    const { data: { user }, error: authError } = await authClient.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
       )
     }
 
