@@ -14,7 +14,7 @@ import {
   ReviewColumn as GlobalReviewColumn,
   ReviewResult as GlobalReviewResult,
   RealTimeUpdates as GlobalRealTimeUpdates,
-  SelectedCell,
+  SelectedCell, 
 } from '@/types'
 
 interface ReviewColumn {
@@ -597,17 +597,6 @@ export default function RealTimeReviewTable({
         longValue: result.long, 
           sourceRef: result.source_reference ?? '',
           confidence: result.confidence_score,
-        })
-      },
-      onViewFile: (fileId: string) => {
-        setSelectedCell({
-          reviewId,
-          fileId,
-          columnId: '',
-          value: null,
-        longValue: null,
-          sourceRef: '',
-          confidence: null,
         })
       },
       onRerunAnalysis: (fileId: string, reviewId: string) => {
