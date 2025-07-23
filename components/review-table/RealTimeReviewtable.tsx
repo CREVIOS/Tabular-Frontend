@@ -609,7 +609,12 @@ export default function RealTimeReviewTable({
           sourceRef: '',
           confidence: null,
         })
-      }
+      },
+      onRerunAnalysis: (fileId: string, reviewId: string) => {
+        // Placeholder - not implemented yet
+        console.log('Rerun analysis requested for file:', fileId, 'review:', reviewId)
+      },
+      reviewId: reviewId
     })
   }, [columns, getRealTimeUpdates, getProcessingCells, reviewId])
   
