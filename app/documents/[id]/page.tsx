@@ -25,6 +25,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { FolderDetailSkeleton } from '@/components/ui/loading-skeletons'
 
 // Icons
 import { 
@@ -170,17 +171,15 @@ export default function FolderDetailPage() {
   }, [router, folderId])
 
   const handleDeleteFile = useCallback(async (fileId: string): Promise<void> => {
-    if (!confirm('Are you sure you want to delete this file?')) return
-    
     try {
-      const response = await fetch(`/api/files/${fileId}`, {
-        method: 'DELETE'
-      })
+      const { files } = await import('@/lib/api/index')
+      const result = await files.delete(fileId)
       
-      if (!response.ok) {
-        throw new Error('Failed to delete file')
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete file')
       }
       
+      // Update state to remove the deleted file
       setState(prev => {
         const fileToDelete = prev.files.find(f => f.id === fileId)
         const updatedFiles = prev.files.filter(f => f.id !== fileId)
@@ -225,20 +224,9 @@ export default function FolderDetailPage() {
     folderColor: state.folder?.color
   }))
 
-  // Loading state while checking authentication
-  if (state.isAuthenticated === null) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-          <div className="flex items-center justify-center h-[80vh]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Checking authentication...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+  // Loading state
+  if (state.loading || state.isAuthenticated === null) {
+    return <FolderDetailSkeleton />
   }
 
   // Redirect if not authenticated

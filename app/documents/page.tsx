@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { PageHeaderSkeleton, DataTableSkeleton } from '@/components/ui/loading-skeletons'
 
 // Icons
 import { FolderOpen } from 'lucide-react'
@@ -165,21 +166,20 @@ export default function DocumentsPage() {
       setShowCreateFolder(true)
     },
     onDeleteFolder: async (folderId) => {
-      if (!confirm('Are you sure you want to delete this folder?')) return
-      
       try {
-        const response = await fetch(`/api/documents/${folderId}`, {
-          method: 'DELETE'
-        })
+        const { folders } = await import('@/lib/api/index')
+        const result = await folders.delete(folderId)
         
-        if (!response.ok) {
-          throw new Error('Failed to delete folder')
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to delete folder')
         }
         
+        // Update state to remove the deleted folder
         setFolders(prev => prev.filter(f => f.id !== folderId))
+        
       } catch (error) {
         console.error('Failed to delete folder:', error)
-        setError('Failed to delete folder')
+        setError(error instanceof Error ? error.message : 'Failed to delete folder')
       }
     },
     onUploadToFolder: (folderId) => {
@@ -198,12 +198,8 @@ export default function DocumentsPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-          <div className="flex items-center justify-center h-[80vh]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Checking authentication...</p>
-            </div>
-          </div>
+          <PageHeaderSkeleton />
+          <DataTableSkeleton />
         </div>
       </div>
     )
@@ -289,24 +285,56 @@ export default function DocumentsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Folders Table */}
-        <FoldersDataTable
-          columns={folderColumns}
-          data={folderTableData}
-          onCreateFolder={() => setShowCreateFolder(true)}
-          isLoading={loading}
-        />
+        {/* Main Content */}
+        {loading ? (
+          <DataTableSkeleton />
+        ) : (
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+            {/* Action Bar */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Your Folders</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {folders.length} folder{folders.length !== 1 ? 's' : ''} • Organize your documents
+                </p>
+              </div>
+              
+              <div className="flex gap-3 w-full sm:w-auto">
+                <Button 
+                  onClick={() => setShowCreateFolder(true)}
+                  className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700"
+                >
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  New Folder
+                </Button>
+              </div>
+            </div>
+
+            {/* Folders Table */}
+            <div className="p-6">
+              <FoldersDataTable
+                columns={folderColumns}
+                data={folderTableData}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Upload Files Dialog */}
         <Dialog open={showUploadFiles} onOpenChange={setShowUploadFiles}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-[95vw] max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Upload Files</DialogTitle>
+              <DialogTitle>
+                Upload Files {uploadFolderId && folders.find(f => f.id === uploadFolderId)?.name && 
+                  `to ${folders.find(f => f.id === uploadFolderId)?.name}`}
+              </DialogTitle>
             </DialogHeader>
-            <FileUpload
-              folderId={uploadFolderId}
-              onUploadSuccess={handleUploadSuccess}
-            />
+            <div className="py-4">
+              <FileUpload 
+                onUploadSuccess={handleUploadSuccess}
+                folderId={uploadFolderId}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       </div>

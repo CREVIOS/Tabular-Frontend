@@ -1,11 +1,15 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { IconCloudUpload, IconX } from '@tabler/icons-react'
+import { sanitizeFileName } from '@/lib/utils'
+import { 
+  IconCloudUpload, 
+  IconX
+} from '@tabler/icons-react'
 import { Folder, Files } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
 
 interface Folder {
@@ -80,12 +84,40 @@ export default function FileUploadWithFolders({
   const onDrop = useCallback((acceptedFiles: File[]) => {
     // Filter files based on allowed types
     const allowedTypes = [
+      // PDF
       'application/pdf',
+      
+      // Microsoft Word
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.template',
+      'application/vnd.ms-word.document.macroEnabled.12',
+      'application/vnd.ms-word.template.macroEnabled.12',
+      
+      // Microsoft Excel
       'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.template',
+      'application/vnd.ms-excel.sheet.macroEnabled.12',
+      'application/vnd.ms-excel.template.macroEnabled.12',
+      'application/vnd.ms-excel.addin.macroEnabled.12',
+      'application/vnd.ms-excel.sheet.binary.macroEnabled.12',
+      
+      // Microsoft PowerPoint
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.openxmlformats-officedocument.presentationml.template',
+      'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+      'application/vnd.ms-powerpoint.addin.macroEnabled.12',
+      'application/vnd.ms-powerpoint.presentation.macroEnabled.12',
+      'application/vnd.ms-powerpoint.template.macroEnabled.12',
+      'application/vnd.ms-powerpoint.slideshow.macroEnabled.12',
+      
+      // Microsoft Access
+      'application/vnd.ms-access',
+      
+      // Text files
+      'text/plain'
     ]
     
     const validFiles = acceptedFiles.filter(file => {
@@ -95,16 +127,28 @@ export default function FileUploadWithFolders({
       
       // Additional check by extension for files with incorrect MIME types
       const extension = '.' + file.name.split('.').pop()?.toLowerCase()
-      const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx']
+      const allowedExtensions = [
+        '.pdf', '.doc', '.docx', '.dotx', '.docm', '.dotm',
+        '.xls', '.xlsx', '.xltx', '.xlsm', '.xltm', '.xlam', '.xlsb',
+        '.ppt', '.pptx', '.potx', '.ppsx', '.ppam', '.pptm', '.potm', '.ppsm',
+        '.mdb', '.accdb', '.accde', '.accdr', '.accdt',
+        '.txt'
+      ]
       return allowedExtensions.includes(extension)
     })
     
-    setSelectedFiles(prev => [...prev, ...validFiles])
+    // Sanitize filenames for security
+    const processedFiles = validFiles.map(file => {
+      const sanitizedName = sanitizeFileName(file.name)
+      return new File([file], sanitizedName, { type: file.type })
+    })
+    
+    setSelectedFiles(prev => [...prev, ...processedFiles])
     
     // Show warning for rejected files
     const rejectedCount = acceptedFiles.length - validFiles.length
     if (rejectedCount > 0) {
-      setError(`${rejectedCount} file(s) were rejected. Please upload PDF, Word, Excel, or text files only.`)
+      setError(`${rejectedCount} file(s) were rejected. Please upload PDF, Microsoft Office, or text files only.`)
     } else {
       setError(null)
     }
@@ -116,9 +160,26 @@ export default function FileUploadWithFolders({
       'application/pdf': ['.pdf'],
       'application/msword': ['.doc'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'text/plain': ['.txt'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.template': ['.dotx'],
+      'application/vnd.ms-word.document.macroEnabled.12': ['.docm'],
+      'application/vnd.ms-word.template.macroEnabled.12': ['.dotm'],
       'application/vnd.ms-excel': ['.xls'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.template': ['.xltx'],
+      'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
+      'application/vnd.ms-excel.template.macroEnabled.12': ['.xltm'],
+      'application/vnd.ms-excel.addin.macroEnabled.12': ['.xlam'],
+      'application/vnd.ms-excel.sheet.binary.macroEnabled.12': ['.xlsb'],
+      'application/vnd.ms-powerpoint': ['.ppt'],
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+      'application/vnd.openxmlformats-officedocument.presentationml.template': ['.potx'],
+      'application/vnd.openxmlformats-officedocument.presentationml.slideshow': ['.ppsx'],
+      'application/vnd.ms-powerpoint.addin.macroEnabled.12': ['.ppam'],
+      'application/vnd.ms-powerpoint.presentation.macroEnabled.12': ['.pptm'],
+      'application/vnd.ms-powerpoint.template.macroEnabled.12': ['.potm'],
+      'application/vnd.ms-powerpoint.slideshow.macroEnabled.12': ['.ppsm'],
+      'application/vnd.ms-access': ['.mdb', '.accdb'],
+      'text/plain': ['.txt']
     },
     maxSize: 50 * 1024 * 1024, // 50MB limit
     multiple: true
@@ -266,28 +327,28 @@ export default function FileUploadWithFolders({
         <CardContent className="p-6">
           <div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+            className={`border-2 border-dashed rounded-lg p-6 sm:p-8 lg:p-12 text-center cursor-pointer transition-colors ${
               isDragActive
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
             }`}
           >
             <input {...getInputProps()} />
-            <IconCloudUpload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <IconCloudUpload className="mx-auto h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 text-gray-400 mb-4 sm:mb-6" />
             {isDragActive ? (
               <div>
-                <p className="text-lg font-medium text-blue-600">Drop the files here...</p>
-                <p className="text-sm text-blue-500 mt-1">
+                <p className="text-lg sm:text-xl lg:text-2xl font-medium text-blue-600">Drop the files here...</p>
+                <p className="text-sm sm:text-base text-blue-500 mt-2">
                   Files will be added to {getSelectedFolderName()}
                 </p>
               </div>
             ) : (
-              <div>
-                <p className="text-lg font-medium text-gray-700">Drop files here or click to browse</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Support for PDF, Word, Excel, and text files (max 50MB each)
+              <div className="space-y-3 sm:space-y-4">
+                <p className="text-lg sm:text-xl lg:text-2xl font-medium text-gray-700">Drop files here or click to browse</p>
+                <p className="text-sm sm:text-base text-gray-500 mt-2 max-w-md mx-auto">
+                  Support for PDF, Microsoft Office (Word, Excel, PowerPoint, Access), and text files (max 50MB each)
                 </p>
-                <p className="text-xs text-gray-400 mt-2">
+                <p className="text-xs sm:text-sm text-gray-400 mt-3">
                   Files will be uploaded to: {getSelectedFolderName()}
                 </p>
               </div>
@@ -320,16 +381,26 @@ export default function FileUploadWithFolders({
               <div className="space-y-3">
                 {selectedFiles.map((file, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Files className="h-4 w-4 text-blue-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate" title={file.name}>
+                        <p 
+                          className="font-medium text-gray-900 break-words leading-tight"
+                          style={{ 
+                            wordBreak: 'break-all',
+                            overflowWrap: 'anywhere',
+                            lineHeight: '1.3'
+                          }}
+                          title={file.name}
+                        >
                           {file.name}
                         </p>
-                        <div className="text-xs text-gray-500">
-                          {file.type || 'Unknown type'} • {formatFileSize(file.size)}
+                        <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-2">
+                          <span>{file.type || 'Unknown type'}</span>
+                          <span>•</span>
+                          <span>{formatFileSize(file.size)}</span>
                         </div>
                       </div>
                     </div>
@@ -337,7 +408,7 @@ export default function FileUploadWithFolders({
                       variant="ghost"
                       size="sm"
                       onClick={() => removeFile(index)}
-                      className="text-gray-400 hover:text-red-600"
+                      className="text-gray-400 hover:text-red-600 flex-shrink-0"
                     >
                       <IconX className="h-4 w-4" />
                     </Button>
