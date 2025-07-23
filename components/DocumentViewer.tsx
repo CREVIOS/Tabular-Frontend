@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react'
-import { X, FileText, BookOpen, Download } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { X, FileText, BookOpen, Download, RefreshCw, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'
 import { SelectedCell } from '../types'
 
@@ -34,16 +35,22 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [documentUrl, setDocumentUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState(false)
 
-  useEffect(() => {
+  const fetchFileInfo = useCallback(async (isRetry = false) => {
     if (!selectedCell) return
-
-    const fetchFileInfo = async () => {
-      try {
+    
+    try {
+      if (isRetry) {
+        setRetrying(true)
+        setError(null)
+      } else {
         setLoading(true)
         setError(null)
+      }
 
-        // Check cache first
+      // Check cache first (but skip cache on retry)
+      if (!isRetry) {
         const cached = urlCache.get(selectedCell.fileId)
         const now = Date.now()
         
@@ -54,38 +61,47 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           setLoading(false)
           return
         }
-
-        // Call the simplified API route to get file info and signed URL
-        console.log('Fetching new signed URL for file:', selectedCell.fileId)
-        const response = await fetch(`/api/file-url?fileId=${selectedCell.fileId}`)
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error || `HTTP ${response.status}`)
-        }
-
-        const data = await response.json()
-        
-        // Cache the result
-        urlCache.set(selectedCell.fileId, {
-          fileInfo: data.fileInfo,
-          signedUrl: data.signedUrl,
-          timestamp: now
-        })
-        
-        setFileInfo(data.fileInfo)
-        setDocumentUrl(data.signedUrl)
-
-      } catch (err) {
-        console.error('Error fetching file info:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load document')
-      } finally {
-        setLoading(false)
       }
-    }
 
-    fetchFileInfo()
+      // Call the simplified API route to get file info and signed URL
+      console.log('Fetching new signed URL for file:', selectedCell.fileId)
+      const response = await fetch(`/api/file-url?fileId=${selectedCell.fileId}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      // Cache the result
+      const now = Date.now()
+      urlCache.set(selectedCell.fileId, {
+        fileInfo: data.fileInfo,
+        signedUrl: data.signedUrl,
+        timestamp: now
+      })
+      
+      setFileInfo(data.fileInfo)
+      setDocumentUrl(data.signedUrl)
+
+    } catch (err) {
+      console.error('Error fetching file info:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load document')
+    } finally {
+      setLoading(false)
+      setRetrying(false)
+    }
   }, [selectedCell])
+
+  const handleRetry = () => {
+    fetchFileInfo(true)
+  }
+
+  useEffect(() => {
+    if (!selectedCell) return
+    fetchFileInfo()
+  }, [selectedCell, fetchFileInfo])
 
   if (!selectedCell) return null
 
@@ -118,110 +134,176 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
       <div 
-        className={`bg-white rounded-lg w-full ${isMobile ? 'max-w-[95vw] h-[90vh]' : 'max-w-4xl h-[85vh]'} flex flex-col shadow-xl overflow-hidden`}
+        className={`bg-white rounded-xl w-full ${isMobile ? 'max-w-[95vw] h-[95vh]' : 'max-w-5xl h-[90vh]'} flex flex-col shadow-2xl overflow-hidden border`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-muted-foreground" />
-            <h2 className="font-semibold">
-              {loading ? 'Loading...' : fileInfo?.original_filename || 'Document'}
-            </h2>
+        {/* Enhanced Header */}
+        <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div className="flex items-center gap-4">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <FileText className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-lg text-gray-900">
+                {loading ? 'Loading Document...' : fileInfo?.original_filename || 'Document Viewer'}
+              </h2>
+              {fileInfo?.file_size && (
+                <p className="text-sm text-gray-500">
+                  {(fileInfo.file_size / 1024 / 1024).toFixed(1)} MB • 
+                  {fileInfo.file_type ? ` ${fileInfo.file_type.toUpperCase()}` : ' Document'}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {documentUrl && fileInfo && (
-              <Button variant="ghost" size="sm" onClick={handleDownload}>
+              <Button variant="outline" size="sm" onClick={handleDownload} className="gap-2">
                 <Download className="h-4 w-4" />
+                Download
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={handleCloseClick}>
+            <Button variant="ghost" size="sm" onClick={handleCloseClick} className="h-9 w-9 p-0">
               <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
         
-        {/* Content */}
+        {/* Enhanced Content */}
         <Tabs defaultValue="analysis" className="flex-1 flex flex-col">
-          <div className="px-4 pt-3">
-            <TabsList className="grid w-full max-w-xs grid-cols-2">
-              <TabsTrigger value="analysis">Analysis</TabsTrigger>
-              <TabsTrigger value="document">Document</TabsTrigger>
+          <div className="px-6 pt-4 border-b bg-gray-50/50">
+            <TabsList className="grid w-full max-w-sm grid-cols-2 bg-white border">
+              <TabsTrigger value="analysis" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                <BookOpen className="h-4 w-4" />
+                Analysis Results
+              </TabsTrigger>
+              <TabsTrigger value="document" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                <FileText className="h-4 w-4" />
+                Source Document
+              </TabsTrigger>
             </TabsList>
           </div>
 
-          {/* Analysis Tab */}
-          <TabsContent value="analysis" className="flex-1 overflow-hidden mt-3">
-            <div className="h-full overflow-y-auto px-4 pb-4 space-y-4">
-              {/* Quick Answer */}
+          {/* Analysis Tab - Enhanced */}
+          <TabsContent value="analysis" className="flex-1 overflow-hidden mt-0">
+            <div className="h-full overflow-y-auto p-6 space-y-6">
+              {/* Quick Answer with better styling */}
               {hasDetailedAnswer && selectedCell.value && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h3 className="font-medium text-green-800 mb-2">Quick Answer</h3>
-                  <p className="text-sm text-green-700">{selectedCell.value}</p>
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <h3 className="font-semibold text-green-800">Quick Answer</h3>
+                  </div>
+                  <p className="text-green-700 leading-relaxed">{selectedCell.value}</p>
                 </div>
               )}
 
-              {/* Main Analysis */}
+              {/* Main Analysis with better presentation */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-blue-600" />
+                  <h3 className="font-semibold text-lg">
+                    {hasDetailedAnswer ? 'Detailed Analysis' : 'Extracted Information'}
+                  </h3>
+                </div>
+                <div className="bg-gray-50 border rounded-xl p-4 max-h-64 overflow-y-auto">
+                  <p className="whitespace-pre-wrap leading-relaxed text-gray-800">{displayValue}</p>
+                </div>
+              </div>
+
+              {/* Enhanced Source Reference */}
               <div className="space-y-3">
-                <h3 className="font-medium">
-                  {hasDetailedAnswer ? 'Detailed Analysis' : 'Extracted Information'}
-                </h3>
-                <div className="bg-gray-50 border rounded-lg p-3 max-h-48 overflow-y-auto">
-                  <p className="text-sm whitespace-pre-wrap">{displayValue}</p>
+                <div className="flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4 text-gray-600" />
+                  <h4 className="font-medium">Source Reference</h4>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-h-40 overflow-y-auto">
+                  <p className="text-sm text-amber-800 italic">{selectedCell.sourceRef}</p>
                 </div>
               </div>
 
-              <Separator />
-
-              {/* Source Reference */}
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">Source Reference</h4>
-                <div className="bg-gray-50 border rounded-lg p-3 max-h-32 overflow-y-auto">
-                  <p className="text-xs text-muted-foreground">{selectedCell.sourceRef}</p>
-                </div>
-              </div>
-
-              {/* Confidence Score */}
+              {/* Enhanced Confidence Score */}
               {selectedCell.confidence && (
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm">Confidence</h4>
-                  <Badge 
-                    variant={selectedCell.confidence > 0.8 ? 'default' : selectedCell.confidence > 0.5 ? 'secondary' : 'destructive'}
-                  >
-                    {Math.round(selectedCell.confidence * 100)}%
-                  </Badge>
+                <div className="space-y-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-gray-600" />
+                    Confidence Score
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    <Badge 
+                      variant={selectedCell.confidence > 0.8 ? 'default' : selectedCell.confidence > 0.5 ? 'secondary' : 'destructive'}
+                      className="text-sm px-3 py-1"
+                    >
+                      {Math.round(selectedCell.confidence * 100)}% confident
+                    </Badge>
+                    <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-32">
+                      <div 
+                        className={`h-2 rounded-full transition-all ${
+                          selectedCell.confidence > 0.8 ? 'bg-green-500' : 
+                          selectedCell.confidence > 0.5 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${selectedCell.confidence * 100}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
           </TabsContent>
 
-          {/* Document Tab */}
-          <TabsContent value="document" className="flex-1 overflow-hidden mt-3">
-            <div className="h-full p-4">
+          {/* Document Tab - Enhanced */}
+          <TabsContent value="document" className="flex-1 overflow-hidden mt-0">
+            <div className="h-full p-6">
               {loading && (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center justify-center h-full space-y-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                    <p className="text-sm text-muted-foreground">Loading document...</p>
+                    <p className="font-medium text-gray-900">Loading document...</p>
+                    <p className="text-sm text-gray-500 mt-1">Please wait while we fetch your document</p>
+                  </div>
+                  <div className="space-y-2 w-full max-w-md">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
                   </div>
                 </div>
               )}
               
               {error && (
                 <div className="flex items-center justify-center h-full">
-                  <div className="text-center border border-red-200 bg-red-50 rounded-lg p-6 max-w-md">
-                    <p className="text-red-800 font-medium">Failed to load document</p>
-                    <p className="text-sm text-red-600 mt-1">{error}</p>
-                  </div>
+                  <Alert className="max-w-md border-red-200 bg-red-50">
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                    <AlertDescription className="text-red-800">
+                      <div className="space-y-3">
+                        <div>
+                          <p className="font-medium">Failed to load document</p>
+                          <p className="text-sm mt-1">{error}</p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleRetry}
+                          disabled={retrying}
+                          className="gap-2"
+                        >
+                          {retrying ? (
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                          Try Again
+                        </Button>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
                 </div>
               )}
               
               {!loading && !error && documentUrl && fileInfo && (
-                <div className="h-full border rounded-lg overflow-hidden">
+                <div className="h-full border-2 border-gray-200 rounded-xl overflow-hidden shadow-inner bg-white">
                   <DocViewer
                     documents={[{
                       uri: documentUrl,
@@ -234,9 +316,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                     }}
                     style={{ height: '100%' }}
                     theme={{
-                      primary: "hsl(var(--primary))",
-                      secondary: "hsl(var(--background))",
-                      tertiary: "hsl(var(--muted))",
+                      primary: "hsl(220 14% 96%)",
+                      secondary: "hsl(0 0% 100%)",
+                      tertiary: "hsl(220 13% 91%)",
                     }}
                   />
                 </div>
@@ -244,10 +326,15 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               
               {!loading && !error && !documentUrl && (
                 <div className="flex items-center justify-center h-full">
-                  <div className="text-center border border-yellow-200 bg-yellow-50 rounded-lg p-6 max-w-md">
-                    <p className="text-yellow-800 font-medium">Document not available</p>
-                    <p className="text-sm text-yellow-600 mt-1">The document may not be stored or accessible.</p>
-                  </div>
+                  <Alert className="max-w-md border-yellow-200 bg-yellow-50">
+                    <AlertCircle className="h-5 w-5 text-yellow-600" />
+                    <AlertDescription className="text-yellow-800">
+                      <div className="space-y-2">
+                        <p className="font-medium">Document preview not available</p>
+                        <p className="text-sm">This document cannot be previewed in the browser, but you can still download it using the button above.</p>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
                 </div>
               )}
             </div>
