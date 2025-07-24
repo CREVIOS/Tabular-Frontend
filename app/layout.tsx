@@ -105,6 +105,7 @@ export default function RootLayout({
           content={`
             default-src 'self';
             script-src 'self' 'unsafe-inline' 'unsafe-eval' ${process.env.NODE_ENV === 'development' ? "'unsafe-inline'" : ''} https://unpkg.com https://cdn.jsdelivr.net;
+            worker-src 'self' blob: https://unpkg.com https://cdn.jsdelivr.net;
             style-src 'self' 'unsafe-inline' http://fonts.googleapis.com;
             img-src 'self' data: http: blob:;
             font-src 'self' http://fonts.gstatic.com;
