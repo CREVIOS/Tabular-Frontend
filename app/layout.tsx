@@ -95,7 +95,6 @@ export default function RootLayout({
         {/* Security Headers */}
         <meta name="referrer" content="strict-origin-when-cross-origin" />
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
         <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
         <meta httpEquiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
         
@@ -115,7 +114,6 @@ export default function RootLayout({
             object-src 'none';
             base-uri 'self';
             form-action 'self';
-            frame-ancestors 'none';
           `.replace(/\s+/g, ' ').trim()
         }
         />
