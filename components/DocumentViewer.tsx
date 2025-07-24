@@ -7,10 +7,30 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { SelectedCell } from '../types'
 
+// React PDF Viewer imports
+import { Viewer, Worker } from '@react-pdf-viewer/core'
+import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout'
+import { highlightPlugin } from '@react-pdf-viewer/highlight'
+import { searchPlugin } from '@react-pdf-viewer/search'
+import type { RenderHighlightsProps } from '@react-pdf-viewer/highlight'
+
+// Import required CSS
+import '@react-pdf-viewer/core/lib/styles/index.css'
+import '@react-pdf-viewer/default-layout/lib/styles/index.css'
+import '@react-pdf-viewer/highlight/lib/styles/index.css'
+import '@react-pdf-viewer/search/lib/styles/index.css'
+
 interface DocumentViewerProps {
   selectedCell: SelectedCell | null
   onClose: () => void
   isMobile?: boolean
+  highlightData?: Array<{
+    page: number
+    section: string
+    paragraph: number
+    text_excerpt: string
+    location_type: string
+  }>
 }
 
 interface FileInfo {
@@ -21,20 +41,51 @@ interface FileInfo {
   storage_path: string | null
 }
 
-// Cache for signed URLs to avoid duplicate API calls
+interface HighlightArea {
+  pageIndex: number
+  left: number
+  top: number
+  width: number
+  height: number
+  backgroundColor: string
+  opacity: number
+}
+
+// Cache for signed URLs
 const urlCache = new Map<string, { fileInfo: FileInfo; signedUrl: string; timestamp: number }>()
-const CACHE_DURATION = 45 * 60 * 1000 // 45 minutes (less than the 1-hour expiry)
+const CACHE_DURATION = 45 * 60 * 1000 // 45 minutes
+
+// PDF.js worker URL
+const pdfjsWorkerUrl = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   selectedCell,
   onClose,
-  isMobile = false
+  isMobile = false,
+  highlightData = []
 }) => {
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [documentUrl, setDocumentUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retrying, setRetrying] = useState(false)
+  const [highlightAreas, setHighlightAreas] = useState<HighlightArea[]>([])
+  const [searchKeywords] = useState<string[]>(
+    highlightData.map(highlight => highlight.text_excerpt).filter(Boolean)
+  )
+
+  // Create highlight areas from data
+  const createHighlightAreas = useCallback((): HighlightArea[] => {
+    return highlightData.map((highlight, index) => ({
+      pageIndex: Math.max(0, highlight.page - 1),
+      left: 5 + (index % 3) * 30,
+      top: highlight.location_type === 'header' ? 10 : 20 + (index % 5) * 15,
+      width: Math.min(85, 20 + highlight.text_excerpt.length / 2),
+      height: 8,
+      backgroundColor: '#fbbf24',
+      opacity: 0.6
+    }))
+  }, [highlightData])
 
   const fetchFileInfo = useCallback(async (isRetry = false) => {
     if (!selectedCell) return
@@ -48,13 +99,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
         setError(null)
       }
 
-      // Check cache first (but skip cache on retry)
+      // Check cache first
       if (!isRetry) {
         const cached = urlCache.get(selectedCell.fileId)
         const now = Date.now()
         
         if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-          console.log('Using cached signed URL for file:', selectedCell.fileId)
           setFileInfo(cached.fileInfo)
           setDocumentUrl(cached.signedUrl)
           setLoading(false)
@@ -62,8 +112,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
         }
       }
 
-      // Call the simplified API route to get file info and signed URL
-      console.log('Fetching new signed URL for file:', selectedCell.fileId)
       const response = await fetch(`/api/file-url?fileId=${selectedCell.fileId}`)
       
       if (!response.ok) {
@@ -102,6 +150,13 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     fetchFileInfo()
   }, [selectedCell, fetchFileInfo])
 
+  // Initialize highlight areas
+  useEffect(() => {
+    if (highlightData.length > 0) {
+      setHighlightAreas(createHighlightAreas())
+    }
+  }, [highlightData, createHighlightAreas])
+
   if (!selectedCell) return null
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -120,38 +175,91 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const displayValue = selectedCell.longValue || selectedCell.value
   const hasDetailedAnswer = selectedCell.longValue && selectedCell.longValue !== selectedCell.value
 
+  // Custom highlight renderer
+  const renderHighlights = (props: RenderHighlightsProps) => {
+    return (
+      <div>
+        {highlightAreas
+          .filter((area) => area.pageIndex === props.pageIndex)
+          .map((area, idx) => {
+            const highlightInfo = highlightData[idx]
+            return (
+              <div
+                key={`highlight-${props.pageIndex}-${idx}`}
+                className="absolute rounded-sm cursor-pointer transition-opacity hover:opacity-80"
+                style={{
+                  left: `${area.left}%`,
+                  top: `${area.top}%`,
+                  width: `${area.width}%`,
+                  height: `${area.height}%`,
+                  backgroundColor: area.backgroundColor,
+                  opacity: area.opacity,
+                  border: '1px solid rgba(251, 191, 36, 0.8)',
+                  zIndex: 1
+                }}
+                title={highlightInfo ? `${highlightInfo.section} - Page ${highlightInfo.page}` : 'Highlighted text'}
+              />
+            )
+          })}
+      </div>
+    )
+  }
+
+  // Plugin instances
+  const searchPluginInstance = searchPlugin({
+    keyword: searchKeywords.length > 0 ? searchKeywords : undefined,
+  })
+
+  const highlightPluginInstance = highlightPlugin({
+    renderHighlights,
+  })
+
+  const defaultLayoutPluginInstance = defaultLayoutPlugin({
+    sidebarTabs: (defaultTabs) => [defaultTabs[0]], // Only show thumbnails
+  })
+
   return (
     <div 
       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
       <div 
-        className={`bg-white rounded-xl w-full ${isMobile ? 'max-w-[95vw] h-[95vh]' : 'max-w-5xl h-[90vh]'} flex flex-col shadow-2xl overflow-hidden border`}
+        className={`bg-white rounded-xl w-full ${isMobile ? 'max-w-[95vw] h-[95vh]' : 'max-w-6xl h-[90vh]'} flex flex-col shadow-2xl overflow-hidden border`}
         onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: '90vh', minHeight: '500px' }}
+        style={{ maxHeight: '90vh', minHeight: '600px' }}
       >
-        {/* Enhanced Content with Tabs */}
+        {/* Header with Tabs */}
         <Tabs defaultValue="analysis" className="flex-1 flex flex-col">
-          {/* Compact Header with Tabs */}
-          <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
-            <TabsList className="grid grid-cols-2 bg-white border">
-              <TabsTrigger value="analysis" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-gray-50 to-white">
+            <TabsList className="grid grid-cols-2 bg-white border shadow-sm">
+              <TabsTrigger value="analysis" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 transition-all">
                 <BookOpen className="h-4 w-4" />
-                Analysis Results
+                Analysis
               </TabsTrigger>
-              <TabsTrigger value="document" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+              <TabsTrigger value="document" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 transition-all">
                 <FileText className="h-4 w-4" />
-                Source Document
+                Document
+                {highlightData.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 text-xs bg-amber-100 text-amber-800">
+                    {highlightData.length}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
-            <Button variant="ghost" size="sm" onClick={handleCloseClick} className="h-8 w-8 p-0">
-              <X className="h-4 w-4" />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleCloseClick} 
+              className="h-9 w-9 p-0 hover:bg-gray-100 transition-colors rounded-full"
+            >
+              <X className="h-5 w-5" />
             </Button>
           </div>
-          {/* Analysis Tab - Enhanced */}
+
+          {/* Analysis Tab */}
           <TabsContent value="analysis" className="flex-1 overflow-hidden mt-0">
             <div className="h-full overflow-y-auto p-6 space-y-6">
-              {/* Quick Answer with better styling */}
+              {/* Quick Answer */}
               {hasDetailedAnswer && selectedCell.value && (
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
@@ -162,7 +270,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 </div>
               )}
 
-              {/* Main Analysis with better presentation */}
+              {/* Main Analysis */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <BookOpen className="h-5 w-5 text-blue-600" />
@@ -170,61 +278,59 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                     {hasDetailedAnswer ? 'Detailed Analysis' : 'Extracted Information'}
                   </h3>
                 </div>
-                <div className="bg-gray-50 border rounded-xl p-4 max-h-80 overflow-y-auto">
-                  <p className="whitespace-pre-wrap leading-relaxed text-gray-800 break-words">{displayValue}</p>
+                <div className="bg-gray-50 border rounded-xl p-5">
+                  <p className="whitespace-pre-wrap leading-relaxed text-gray-800 break-words">
+                    {hasDetailedAnswer ? selectedCell.longValue : displayValue}
+                  </p>
                 </div>
               </div>
 
-              {/* Enhanced Source Reference */}
+              {/* Source Reference */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <ExternalLink className="h-4 w-4 text-gray-600" />
-                  <h4 className="font-medium">Source Reference</h4>
+                  <h4 className="font-medium">Source</h4>
                 </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-h-48 overflow-y-auto">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                   <p className="text-sm text-amber-800 italic break-words">{selectedCell.sourceRef}</p>
                 </div>
               </div>
 
-              {/* Enhanced Confidence Score */}
-              {selectedCell.confidence && (
-                <div className="space-y-3">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-gray-600" />
-                    Confidence Score
-                  </h4>
-                  <div className="flex items-center gap-3">
-                    <Badge 
-                      variant={selectedCell.confidence > 0.8 ? 'default' : selectedCell.confidence > 0.5 ? 'secondary' : 'destructive'}
-                      className="text-sm px-3 py-1"
-                    >
-                      {Math.round(selectedCell.confidence * 100)}% confident
-                    </Badge>
-                    <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-32">
-                      <div 
-                        className={`h-2 rounded-full transition-all ${
-                          selectedCell.confidence > 0.8 ? 'bg-green-500' : 
-                          selectedCell.confidence > 0.5 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${selectedCell.confidence * 100}%` }}
-                      />
-                    </div>
+              {/* Highlights */}
+              {highlightData.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <h4 className="font-medium">References ({highlightData.length})</h4>
+                  </div>
+                  <div className="grid gap-3">
+                    {highlightData.map((highlight, index) => (
+                      <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-yellow-800">Page {highlight.page}</span>
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {highlight.location_type}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-yellow-700">
+                          <p className="font-medium">{highlight.section}</p>
+                          <p className="mt-1 italic">"{highlight.text_excerpt}"</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
             </div>
           </TabsContent>
 
-          {/* Document Tab - Enhanced with Simple PDF Viewer */}
+          {/* Document Tab */}
           <TabsContent value="document" className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 p-4">
               {loading && (
                 <div className="flex flex-col items-center justify-center h-full space-y-4">
                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
-                  <div className="text-center">
-                    <p className="font-medium text-gray-900">Loading document...</p>
-                    <p className="text-sm text-gray-500 mt-1">Please wait while we fetch your document</p>
-                  </div>
+                  <p className="font-medium text-gray-900">Loading document...</p>
                   <div className="space-y-2 w-full max-w-md">
                     <Skeleton className="h-4 w-full" />
                     <Skeleton className="h-4 w-3/4" />
@@ -239,10 +345,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                     <AlertCircle className="h-5 w-5 text-red-600" />
                     <AlertDescription className="text-red-800">
                       <div className="space-y-3">
-                        <div>
-                          <p className="font-medium">Failed to load document</p>
-                          <p className="text-sm mt-1">{error}</p>
-                        </div>
+                        <p className="font-medium">Failed to load document</p>
                         <Button 
                           variant="outline" 
                           size="sm" 
@@ -265,23 +368,22 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               
               {!loading && !error && documentUrl && fileInfo && (
                 <div className="h-full border-2 border-gray-200 rounded-xl overflow-hidden shadow-inner bg-white">
-                  {/* Simple PDF Viewer using iframe - no worker issues */}
                   {fileInfo.file_type?.toLowerCase().includes('pdf') ? (
-                    <iframe
-                      src={`${documentUrl}#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH`}
-                      className="w-full h-full border-0"
-                      title={fileInfo.original_filename}
-                      loading="lazy"
-                      onError={() => {
-                        // Fallback to basic iframe without parameters
-                        const iframe = document.querySelector('iframe[title="' + fileInfo.original_filename + '"]') as HTMLIFrameElement;
-                        if (iframe) {
-                          iframe.src = documentUrl;
-                        }
-                      }}
-                    />
+                    <Worker workerUrl={pdfjsWorkerUrl}>
+                      <div className="h-full pdf-viewer-container">
+                        <Viewer
+                          fileUrl={documentUrl}
+                          plugins={[
+                            defaultLayoutPluginInstance,
+                            searchPluginInstance,
+                            highlightPluginInstance,
+                          ]}
+                          defaultScale={1.2}
+                          theme="light"
+                        />
+                      </div>
+                    </Worker>
                   ) : (
-                    // For non-PDF files, show download option or preview if possible
                     <div className="flex flex-col items-center justify-center h-full space-y-4">
                       <div className="text-center">
                         <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -311,10 +413,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                   <Alert className="max-w-md border-yellow-200 bg-yellow-50">
                     <AlertCircle className="h-5 w-5 text-yellow-600" />
                     <AlertDescription className="text-yellow-800">
-                      <div className="space-y-2">
-                        <p className="font-medium">Document preview not available</p>
-                        <p className="text-sm">This document cannot be previewed in the browser.</p>
-                      </div>
+                      <p className="font-medium">Document preview not available</p>
                     </AlertDescription>
                   </Alert>
                 </div>
