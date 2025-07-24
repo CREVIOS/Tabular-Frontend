@@ -130,37 +130,24 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
         onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: '90vh', minHeight: '500px' }}
       >
-        {/* Enhanced Header with Tabs */}
-        <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-center gap-4">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-lg text-gray-900">Document Viewer</h2>
-              <div className="flex items-center gap-4 mt-2">
-                <Tabs defaultValue="analysis" className="w-auto">
-                  <TabsList className="grid w-full grid-cols-2 bg-white border">
-                    <TabsTrigger value="analysis" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-                      <BookOpen className="h-4 w-4" />
-                      Analysis Results
-                    </TabsTrigger>
-                    <TabsTrigger value="document" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-                      <FileText className="h-4 w-4" />
-                      Source Document
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            </div>
-          </div>
-          <Button variant="ghost" size="sm" onClick={handleCloseClick} className="h-9 w-9 p-0">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        {/* Enhanced Content */}
+        {/* Enhanced Content with Tabs */}
         <Tabs defaultValue="analysis" className="flex-1 flex flex-col">
+          {/* Compact Header with Tabs */}
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+            <TabsList className="grid grid-cols-2 bg-white border">
+              <TabsTrigger value="analysis" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                <BookOpen className="h-4 w-4" />
+                Analysis Results
+              </TabsTrigger>
+              <TabsTrigger value="document" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                <FileText className="h-4 w-4" />
+                Source Document
+              </TabsTrigger>
+            </TabsList>
+            <Button variant="ghost" size="sm" onClick={handleCloseClick} className="h-8 w-8 p-0">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
           {/* Analysis Tab - Enhanced */}
           <TabsContent value="analysis" className="flex-1 overflow-hidden mt-0">
             <div className="h-full overflow-y-auto p-6 space-y-6">
@@ -229,8 +216,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           </TabsContent>
 
           {/* Document Tab - Enhanced with Simple PDF Viewer */}
-          <TabsContent value="document" className="flex-1 overflow-hidden mt-0">
-            <div className="h-full p-6">
+          <TabsContent value="document" className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 p-4">
               {loading && (
                 <div className="flex flex-col items-center justify-center h-full space-y-4">
                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
