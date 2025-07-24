@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { SelectedCell } from '../types'
 
 // React PDF Viewer imports
@@ -149,18 +150,34 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     fetchFileInfo()
   }, [selectedCell, fetchFileInfo])
 
-  // Configure PDF.js worker dynamically
+  // Configure PDF.js worker dynamically with version matching
   useEffect(() => {
     const configurePdfWorker = async () => {
       try {
         const pdfjs = await import('pdfjs-dist')
-        // Use CDN worker to avoid build issues
-        pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'
+        if (pdfjs && pdfjs.GlobalWorkerOptions && pdfjs.version) {
+          // Use matching version and .mjs extension for compatibility
+          pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+          console.log(`PDF.js worker configured with version: ${pdfjs.version}`)
+        }
       } catch (error) {
         console.warn('Failed to configure PDF.js worker:', error)
+        // Fallback configuration
+        try {
+          const pdfjs = await import('pdfjs-dist')
+          if (pdfjs && pdfjs.GlobalWorkerOptions) {
+            pdfjs.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.mjs'
+          }
+        } catch (fallbackError) {
+          console.error('Fallback PDF.js worker configuration failed:', fallbackError)
+        }
       }
     }
-    configurePdfWorker()
+    
+    // Only configure if we're in the browser
+    if (typeof window !== 'undefined') {
+      configurePdfWorker()
+    }
   }, [])
 
   // Initialize highlight areas
@@ -233,14 +250,16 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
       onClick={handleBackdropClick}
     >
-      <div 
-        className={`bg-white rounded-xl w-full ${isMobile ? 'max-w-[95vw] h-[95vh]' : 'max-w-6xl h-[90vh]'} flex flex-col shadow-2xl overflow-hidden border`}
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: '90vh', minHeight: '600px' }}
-      >
+      <ScrollArea className="h-full">   
+        <div className="min-h-full flex items-center justify-center p-4">
+        <div 
+          className={`bg-white rounded-xl w-full ${isMobile ? 'max-w-[95vw]' : 'max-w-6xl'} flex flex-col shadow-2xl border my-4`}
+          onClick={(e) => e.stopPropagation()}
+          style={{ minHeight: isMobile ? '90vh' : '600px', maxHeight: 'calc(100vh - 2rem)' }}
+        >
         {/* Header with Tabs */}
         <Tabs defaultValue="analysis" className="flex-1 flex flex-col">
           <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-gray-50 to-white">
@@ -432,7 +451,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+        </div>
+        </div>
+      </ScrollArea>
     </div>
   )
 }
