@@ -8,11 +8,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { SelectedCell } from '../types'
 
 // React PDF Viewer imports
-import { Viewer, Worker } from '@react-pdf-viewer/core'
+import { Viewer } from '@react-pdf-viewer/core'
 import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout'
 import { highlightPlugin } from '@react-pdf-viewer/highlight'
 import { searchPlugin } from '@react-pdf-viewer/search'
 import type { RenderHighlightsProps } from '@react-pdf-viewer/highlight'
+import * as pdfjs from 'pdfjs-dist'
 
 // Import required CSS
 import '@react-pdf-viewer/core/lib/styles/index.css'
@@ -55,8 +56,11 @@ interface HighlightArea {
 const urlCache = new Map<string, { fileInfo: FileInfo; signedUrl: string; timestamp: number }>()
 const CACHE_DURATION = 45 * 60 * 1000 // 45 minutes
 
-// PDF.js worker URL
-const pdfjsWorkerUrl = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`
+// Configure PDF.js worker for Next.js
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.js',
+  import.meta.url,
+).toString()
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   selectedCell,
@@ -369,20 +373,18 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               {!loading && !error && documentUrl && fileInfo && (
                 <div className="h-full border-2 border-gray-200 rounded-xl overflow-hidden shadow-inner bg-white">
                   {fileInfo.file_type?.toLowerCase().includes('pdf') ? (
-                    <Worker workerUrl={pdfjsWorkerUrl}>
-                      <div className="h-full pdf-viewer-container">
-                        <Viewer
-                          fileUrl={documentUrl}
-                          plugins={[
-                            defaultLayoutPluginInstance,
-                            searchPluginInstance,
-                            highlightPluginInstance,
-                          ]}
-                          defaultScale={1.2}
-                          theme="light"
-                        />
-                      </div>
-                    </Worker>
+                    <div className="h-full pdf-viewer-container">
+                      <Viewer
+                        fileUrl={documentUrl}
+                        plugins={[
+                          defaultLayoutPluginInstance,
+                          searchPluginInstance,
+                          highlightPluginInstance,
+                        ]}
+                        defaultScale={1.2}
+                        theme="light"
+                      />
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full space-y-4">
                       <div className="text-center">
