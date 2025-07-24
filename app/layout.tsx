@@ -109,6 +109,7 @@ export default function RootLayout({
             img-src 'self' data: http: blob:;
             font-src 'self' http://fonts.gstatic.com;
             connect-src 'self' https://app2.makebell.com:8443 http://localhost:8000 ${process.env.NEXT_PUBLIC_API_URL || ''} wss: ws: ${process.env.NEXT_PUBLIC_SUPABASE_URL} wss://knqkunivquuuvnfwrqrn.supabase.co;
+            frame-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL || ''} *.supabase.co;
             media-src 'self';
             object-src 'none';
             base-uri 'self';
