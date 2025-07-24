@@ -1,24 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { X, BookOpen, Download, RefreshCw, AlertCircle, CheckCircle, ExternalLink, FileText } from 'lucide-react'
+import { X, BookOpen, RefreshCw, AlertCircle, CheckCircle, ExternalLink, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer'
 import { SelectedCell } from '../types'
-
-// Extend Window interface for PDF.js
-declare global {
-  interface Window {
-    pdfjsLib?: {
-      GlobalWorkerOptions: {
-        workerSrc: string;
-      };
-      disableWorker?: boolean;
-    };
-  }
-}
 
 interface DocumentViewerProps {
   selectedCell: SelectedCell | null
@@ -48,15 +35,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retrying, setRetrying] = useState(false)
-
-  // Configure PDF.js to avoid worker errors
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.pdfjsLib) {
-      // Disable PDF.js worker to avoid CORS and loading issues
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-      window.pdfjsLib.disableWorker = true;
-    }
-  }, []);
 
   const fetchFileInfo = useCallback(async (isRetry = false) => {
     if (!selectedCell) return
@@ -138,17 +116,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     onClose()
   }
 
-  const handleDownload = () => {
-    if (documentUrl && fileInfo) {
-      const link = document.createElement('a')
-      link.href = documentUrl
-      link.download = fileInfo.original_filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    }
-  }
-
   // Use long value if available, otherwise fall back to short value
   const displayValue = selectedCell.longValue || selectedCell.value
   const hasDetailedAnswer = selectedCell.longValue && selectedCell.longValue !== selectedCell.value
@@ -163,52 +130,37 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
         onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: '90vh', minHeight: '500px' }}
       >
-        {/* Enhanced Header */}
+        {/* Enhanced Header with Tabs */}
         <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
           <div className="flex items-center gap-4">
             <div className="p-2 bg-blue-100 rounded-lg">
               <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="font-semibold text-lg text-gray-900">
-                {loading ? 'Loading Document...' : fileInfo?.original_filename || 'Document Viewer'}
-              </h2>
-              {fileInfo?.file_size && (
-                <p className="text-sm text-gray-500">
-                  {(fileInfo.file_size / 1024 / 1024).toFixed(1)} MB • 
-                  {fileInfo.file_type ? ` ${fileInfo.file_type.toUpperCase()}` : ' Document'}
-                </p>
-              )}
+              <h2 className="font-semibold text-lg text-gray-900">Document Viewer</h2>
+              <div className="flex items-center gap-4 mt-2">
+                <Tabs defaultValue="analysis" className="w-auto">
+                  <TabsList className="grid w-full grid-cols-2 bg-white border">
+                    <TabsTrigger value="analysis" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                      <BookOpen className="h-4 w-4" />
+                      Analysis Results
+                    </TabsTrigger>
+                    <TabsTrigger value="document" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+                      <FileText className="h-4 w-4" />
+                      Source Document
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {documentUrl && fileInfo && (
-              <Button variant="outline" size="sm" onClick={handleDownload} className="gap-2">
-                <Download className="h-4 w-4" />
-                Download
-              </Button>
-            )}
-            <Button variant="ghost" size="sm" onClick={handleCloseClick} className="h-9 w-9 p-0">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" onClick={handleCloseClick} className="h-9 w-9 p-0">
+            <X className="h-4 w-4" />
+          </Button>
         </div>
         
         {/* Enhanced Content */}
         <Tabs defaultValue="analysis" className="flex-1 flex flex-col">
-          <div className="px-6 pt-4 border-b bg-gray-50/50">
-            <TabsList className="grid w-full max-w-sm grid-cols-2 bg-white border">
-              <TabsTrigger value="analysis" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-                <BookOpen className="h-4 w-4" />
-                Analysis Results
-              </TabsTrigger>
-              <TabsTrigger value="document" className="gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
-                <FileText className="h-4 w-4" />
-                Source Document
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
           {/* Analysis Tab - Enhanced */}
           <TabsContent value="analysis" className="flex-1 overflow-hidden mt-0">
             <div className="h-full overflow-y-auto p-6 space-y-6">
@@ -231,9 +183,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                     {hasDetailedAnswer ? 'Detailed Analysis' : 'Extracted Information'}
                   </h3>
                 </div>
-                                 <div className="bg-gray-50 border rounded-xl p-4 max-h-80 overflow-y-auto">
-                   <p className="whitespace-pre-wrap leading-relaxed text-gray-800 break-words">{displayValue}</p>
-                 </div>
+                <div className="bg-gray-50 border rounded-xl p-4 max-h-80 overflow-y-auto">
+                  <p className="whitespace-pre-wrap leading-relaxed text-gray-800 break-words">{displayValue}</p>
+                </div>
               </div>
 
               {/* Enhanced Source Reference */}
@@ -242,9 +194,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                   <ExternalLink className="h-4 w-4 text-gray-600" />
                   <h4 className="font-medium">Source Reference</h4>
                 </div>
-                                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-h-48 overflow-y-auto">
-                   <p className="text-sm text-amber-800 italic break-words">{selectedCell.sourceRef}</p>
-                 </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-h-48 overflow-y-auto">
+                  <p className="text-sm text-amber-800 italic break-words">{selectedCell.sourceRef}</p>
+                </div>
               </div>
 
               {/* Enhanced Confidence Score */}
@@ -276,7 +228,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
             </div>
           </TabsContent>
 
-          {/* Document Tab - Enhanced */}
+          {/* Document Tab - Enhanced with Simple PDF Viewer */}
           <TabsContent value="document" className="flex-1 overflow-hidden mt-0">
             <div className="h-full p-6">
               {loading && (
@@ -326,24 +278,44 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               
               {!loading && !error && documentUrl && fileInfo && (
                 <div className="h-full border-2 border-gray-200 rounded-xl overflow-hidden shadow-inner bg-white">
-                  <DocViewer
-                    documents={[{
-                      uri: documentUrl,
-                      fileName: fileInfo.original_filename,
-                    }]}
-                    pluginRenderers={DocViewerRenderers}
-                    config={{
-                      header: { disableFileName: true },
-                      pdfZoom: { defaultZoom: 1.0, zoomJump: 0.2 },
-                      pdfVerticalScrollByDefault: true,
-                    }}
-                    style={{ height: '100%' }}
-                    theme={{
-                      primary: "hsl(220 14% 96%)",
-                      secondary: "hsl(0 0% 100%)",
-                      tertiary: "hsl(220 13% 91%)",
-                    }}
-                  />
+                  {/* Simple PDF Viewer using iframe - no worker issues */}
+                  {fileInfo.file_type?.toLowerCase().includes('pdf') ? (
+                    <iframe
+                      src={`${documentUrl}#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH`}
+                      className="w-full h-full border-0"
+                      title={fileInfo.original_filename}
+                      loading="lazy"
+                      onError={() => {
+                        // Fallback to basic iframe without parameters
+                        const iframe = document.querySelector('iframe[title="' + fileInfo.original_filename + '"]') as HTMLIFrameElement;
+                        if (iframe) {
+                          iframe.src = documentUrl;
+                        }
+                      }}
+                    />
+                  ) : (
+                    // For non-PDF files, show download option or preview if possible
+                    <div className="flex flex-col items-center justify-center h-full space-y-4">
+                      <div className="text-center">
+                        <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                          {fileInfo.original_filename}
+                        </h3>
+                        <p className="text-gray-600 mb-4">
+                          {fileInfo.file_type?.toUpperCase() || 'Document'} • {fileInfo.file_size ? (fileInfo.file_size / 1024 / 1024).toFixed(1) + ' MB' : 'Unknown size'}
+                        </p>
+                        <a
+                          href={documentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Open in New Tab
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -354,7 +326,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                     <AlertDescription className="text-yellow-800">
                       <div className="space-y-2">
                         <p className="font-medium">Document preview not available</p>
-                        <p className="text-sm">This document cannot be previewed in the browser, but you can still download it using the button above.</p>
+                        <p className="text-sm">This document cannot be previewed in the browser.</p>
                       </div>
                     </AlertDescription>
                   </Alert>
