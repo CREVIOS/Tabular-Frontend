@@ -95,7 +95,6 @@ export default function RootLayout({
         {/* Security Headers */}
         <meta name="referrer" content="strict-origin-when-cross-origin" />
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
         <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
         <meta httpEquiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
         
@@ -104,8 +103,8 @@ export default function RootLayout({
           httpEquiv="Content-Security-Policy"
           content={`
             default-src 'self';
-            script-src 'self' 'unsafe-inline' 'unsafe-eval' ${process.env.NODE_ENV === 'development' ? "'unsafe-inline'" : ''} https://unpkg.com https://cdn.jsdelivr.net;
-            worker-src 'self' blob: https://unpkg.com https://cdn.jsdelivr.net;
+            script-src 'self' 'unsafe-inline' 'unsafe-eval' ${process.env.NODE_ENV === 'development' ? "'unsafe-inline'" : ''} https://unpkg.com https://cdn.jsdelivr.net data: 'wasm-unsafe-eval';
+            worker-src 'self' blob: https://unpkg.com https://cdn.jsdelivr.net data:;
             style-src 'self' 'unsafe-inline' http://fonts.googleapis.com;
             img-src 'self' data: http: blob:;
             font-src 'self' http://fonts.gstatic.com;
@@ -115,7 +114,6 @@ export default function RootLayout({
             object-src 'none';
             base-uri 'self';
             form-action 'self';
-            frame-ancestors 'none';
           `.replace(/\s+/g, ' ').trim()
         }
         />

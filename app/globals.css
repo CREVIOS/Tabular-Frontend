@@ -182,7 +182,7 @@
   background-color: rgba(251, 191, 36, 0.6) !important;
   border: 1px solid rgba(251, 191, 36, 0.8) !important;
   border-radius: 2px !important;
-}
+  }
 
 .pdf-viewer-container .rpv-search__highlight--current {
   background-color: rgba(239, 68, 68, 0.6) !important;
@@ -220,8 +220,8 @@
 .pdf-viewer-container .rpv-thumbnail__item--selected {
   border: 2px solid #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
+  }
+  
 /* Zoom controls */
 .pdf-viewer-container .rpv-zoom__popover {
   border-radius: 8px;
@@ -268,8 +268,8 @@
   .pdf-viewer-container .rpv-toolbar {
     padding: 4px 8px;
     flex-wrap: wrap;
-  }
-  
+}
+
   .pdf-viewer-container .rpv-toolbar__item {
     margin: 2px;
   }
@@ -292,7 +292,7 @@
   to {
     opacity: 0.6;
     transform: scale(1);
-  }
+}
 }
 
 .pdf-viewer-container .highlight-area {
@@ -319,7 +319,7 @@
 
 .pdf-viewer-container .rpv-core__button--primary:hover {
   background-color: #2563eb;
-}
+  }
 
 /* Progress bar for loading */
 .pdf-viewer-container .rpv-core__progress-bar {
