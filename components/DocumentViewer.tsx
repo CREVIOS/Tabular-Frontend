@@ -13,7 +13,6 @@ import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout'
 import { highlightPlugin } from '@react-pdf-viewer/highlight'
 import { searchPlugin } from '@react-pdf-viewer/search'
 import type { RenderHighlightsProps } from '@react-pdf-viewer/highlight'
-import * as pdfjs from 'pdfjs-dist'
 
 // Import required CSS
 import '@react-pdf-viewer/core/lib/styles/index.css'
@@ -56,11 +55,7 @@ interface HighlightArea {
 const urlCache = new Map<string, { fileInfo: FileInfo; signedUrl: string; timestamp: number }>()
 const CACHE_DURATION = 45 * 60 * 1000 // 45 minutes
 
-// Configure PDF.js worker for Next.js
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.js',
-  import.meta.url,
-).toString()
+// PDF.js worker will be configured at runtime
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   selectedCell,
@@ -153,6 +148,20 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     if (!selectedCell) return
     fetchFileInfo()
   }, [selectedCell, fetchFileInfo])
+
+  // Configure PDF.js worker dynamically
+  useEffect(() => {
+    const configurePdfWorker = async () => {
+      try {
+        const pdfjs = await import('pdfjs-dist')
+        // Use CDN worker to avoid build issues
+        pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'
+      } catch (error) {
+        console.warn('Failed to configure PDF.js worker:', error)
+      }
+    }
+    configurePdfWorker()
+  }, [])
 
   // Initialize highlight areas
   useEffect(() => {
