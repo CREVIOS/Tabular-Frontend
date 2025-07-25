@@ -72,6 +72,7 @@ const isValidUrl = (url: string): boolean => {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const validateHighlightData = (data: any[]): HighlightItem[] => {
   if (!Array.isArray(data)) return []
   
@@ -403,7 +404,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                                const pageUrl = `${documentUrl}#page=${pageNumber}`
                                
                                // Safer DOM manipulation with more specific selector
-                               const sanitizedFilename = sanitizeText(fileInfo.original_filename || '')
                                const iframe = document.querySelector(`iframe[data-file-id="${selectedCell?.fileId}"]`) as HTMLIFrameElement
                                if (iframe && isValidUrl(pageUrl)) {
                                  iframe.src = pageUrl
