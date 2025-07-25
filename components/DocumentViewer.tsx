@@ -402,8 +402,6 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                                const pageNumber = Math.max(1, Math.min(10000, Math.floor(page)))
                                const pageUrl = `${documentUrl}#page=${pageNumber}`
                                
-                               // Safer DOM manipulation with more specific selector
-                               const sanitizedFilename = sanitizeText(fileInfo.original_filename || '')
                                const iframe = document.querySelector(`iframe[data-file-id="${selectedCell?.fileId}"]`) as HTMLIFrameElement
                                if (iframe && isValidUrl(pageUrl)) {
                                  iframe.src = pageUrl
