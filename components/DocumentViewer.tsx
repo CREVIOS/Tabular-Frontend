@@ -33,13 +33,26 @@ interface FileInfo {
 const urlCache = new Map<string, { fileInfo: FileInfo; signedUrl: string; timestamp: number }>()
 const CACHE_DURATION = 45 * 60 * 1000 // 45 minutes
 
-// Types for highlights
+// Flexible types for LLM-generated highlights that can have various structures
 interface HighlightItem {
   page: number
-  section: string
-  paragraph: number
+  section?: string | null
+  paragraph?: number | null
   text_excerpt: string
-  location_type: string
+  location_type?: string | null
+  bounding_info?: string | null
+  // Additional fields that LLM might generate
+  context?: string | null
+  subsection?: string | null
+  title?: string | null
+  content?: string | null
+  excerpt?: string | null
+  text?: string | null
+  description?: string | null
+  bbox?: string | null
+  coordinates?: string | null
+  region?: string | null
+  area?: string | null
 }
 
 // Security utilities
@@ -59,6 +72,16 @@ const sanitizeText = (text: string): string => {
     .slice(0, 10000) // Limit length to prevent DoS
 }
 
+// Clean text excerpt for better display
+const cleanTextExcerpt = (text: string): string => {
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 const isValidUrl = (url: string): boolean => {
   try {
     const urlObj = new URL(url)
@@ -72,31 +95,99 @@ const isValidUrl = (url: string): boolean => {
   }
 }
 
+// Helper to extract text content from various possible field names
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const extractTextContent = (item: any): string => {
+  const possibleTextFields = [
+    'text_excerpt', 'excerpt', 'text', 'content', 'description'
+  ]
+  
+  for (const field of possibleTextFields) {
+    if (item[field] && typeof item[field] === 'string' && item[field].trim()) {
+      return item[field].trim()
+    }
+  }
+  
+  return 'No content available'
+}
+
+// Helper to extract section/title information
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const extractSectionInfo = (item: any): string => {
+  const possibleSectionFields = [
+    'section', 'title', 'subsection', 'chapter', 'heading'
+  ]
+  
+  for (const field of possibleSectionFields) {
+    if (item[field] && typeof item[field] === 'string' && item[field].trim()) {
+      return item[field].trim()
+    }
+  }
+  
+  return 'Unknown Section'
+}
+
+// Helper to extract location context information
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const extractLocationContext = (item: any): string | null => {
+  const possibleContextFields = [
+    'bounding_info', 'context', 'bbox', 'coordinates', 'region', 'area', 'location_context'
+  ]
+  
+  for (const field of possibleContextFields) {
+    if (item[field] && typeof item[field] === 'string' && item[field].trim()) {
+      return item[field].trim()
+    }
+  }
+  
+  return null
+}
+
+// Robust validation for LLM-generated data
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const validateHighlightData = (data: any[]): HighlightItem[] => {
   if (!Array.isArray(data)) return []
   
   return data
-    .filter(item => 
-      item && 
-      typeof item.page === 'number' && 
-      item.page > 0 && 
-      item.page <= 10000 && // Reasonable page limit
-      typeof item.section === 'string' &&
-      typeof item.text_excerpt === 'string' &&
-      typeof item.location_type === 'string'
-    )
-    .map(item => ({
-      page: Math.floor(item.page),
-      section: sanitizeText(item.section),
-      paragraph: typeof item.paragraph === 'number' ? Math.floor(item.paragraph) : 0,
-      text_excerpt: sanitizeText(item.text_excerpt),
-      location_type: sanitizeText(item.location_type)
-    }))
+    .filter(item => {
+      // Only require page number and some form of text content
+      if (!item || typeof item !== 'object') return false
+      
+      // Page must be a valid number
+      const page = Number(item.page)
+      if (!page || page < 1 || page > 10000) return false
+      
+      // Must have some text content
+      const textContent = extractTextContent(item)
+      if (!textContent || textContent === 'No content available') return false
+      
+      return true
+    })
+    .map(item => {
+      const processedItem: HighlightItem = {
+        page: Math.floor(Number(item.page)),
+        text_excerpt: sanitizeText(extractTextContent(item)),
+        section: sanitizeText(extractSectionInfo(item)),
+        paragraph: item.paragraph && typeof item.paragraph === 'number' ? Math.floor(item.paragraph) : null,
+        location_type: item.location_type && typeof item.location_type === 'string' ? sanitizeText(item.location_type) : 'content',
+        bounding_info: extractLocationContext(item) ? sanitizeText(extractLocationContext(item)!) : null,
+      }
+      
+      // Add any additional context fields that might be useful
+      const additionalFields = ['context', 'subsection', 'title', 'description']
+      additionalFields.forEach(field => {
+        if (item[field] && typeof item[field] === 'string') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (processedItem as any)[field] = sanitizeText(item[field])
+        }
+      })
+      
+      return processedItem
+    })
     .slice(0, 1000) // Limit total highlights to prevent performance issues
 }
 
-// Utility function to group highlights
+// Utility function to group highlights with flexible sorting
 const groupHighlightsByPage = (highlights: HighlightItem[]) => {
   const grouped = highlights.reduce((acc, highlight) => {
     const page = highlight.page
@@ -113,11 +204,19 @@ const groupHighlightsByPage = (highlights: HighlightItem[]) => {
     .sort((a: number, b: number) => a - b)
     .reduce((acc, page) => {
       acc[page] = grouped[page].sort((a: HighlightItem, b: HighlightItem) => {
-        // Sort by section, then by paragraph
-        if (a.section !== b.section) {
-          return a.section.localeCompare(b.section)
+        // Sort by section (handle nulls/undefined)
+        const sectionA = a.section || 'ZZZ_Unknown'  // Put unknowns at end
+        const sectionB = b.section || 'ZZZ_Unknown'
+        
+        if (sectionA !== sectionB) {
+          return sectionA.localeCompare(sectionB)
         }
-        return a.paragraph - b.paragraph
+        
+        // Sort by paragraph (handle nulls)
+        const paragraphA = a.paragraph || 0
+        const paragraphB = b.paragraph || 0
+        
+        return paragraphA - paragraphB
       })
       return acc
     }, {} as Record<number, HighlightItem[]>)
@@ -138,6 +237,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retrying, setRetrying] = useState(false)
+  const [iframeError, setIframeError] = useState(false)
 
   // Enhanced file fetching with better error handling
   const fetchFileInfo = useCallback(async (isRetry = false) => {
@@ -345,28 +445,89 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                             </div>
                           </div>
                           <div className="p-4 space-y-4">
-                            {highlights.map((highlight, index) => (
-                              <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                <div className="flex items-start justify-between mb-3">
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium text-yellow-800">{highlight.section}</span>
-                                      {highlight.paragraph && (
-                                        <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-700">
-                                          Para {highlight.paragraph}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <Badge variant="outline" className="text-xs capitalize bg-white">
-                                      {highlight.location_type}
-                                    </Badge>
-                                  </div>
-                                </div>
-                                <div className="text-sm text-yellow-700">
-                                  <p className="italic leading-relaxed">"{highlight.text_excerpt}"</p>
-                                </div>
-                              </div>
-                            ))}
+                                                         {highlights.map((highlight, index) => {
+                               // Collect all available context information
+                               const contextItems = []
+                               
+                               if (highlight.location_type) {
+                                 contextItems.push({
+                                   label: highlight.location_type,
+                                   color: 'bg-white',
+                                   textColor: 'text-gray-700'
+                                 })
+                               }
+                               
+                               if (highlight.bounding_info) {
+                                 contextItems.push({
+                                   label: cleanTextExcerpt(highlight.bounding_info),
+                                   color: 'bg-blue-50 border-blue-200',
+                                   textColor: 'text-blue-700'
+                                 })
+                               }
+                               
+                               // Check for any additional context fields
+                               const additionalContext = []
+                               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                               if ((highlight as any).context) additionalContext.push((highlight as any).context)
+                               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                               if ((highlight as any).subsection) additionalContext.push((highlight as any).subsection)
+                               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                               if ((highlight as any).description) additionalContext.push((highlight as any).description)
+                               
+                               return (
+                                 <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                   <div className="flex items-start justify-between mb-3">
+                                     <div className="space-y-2 flex-1">
+                                       {/* Section and paragraph info */}
+                                       <div className="flex items-center gap-2 flex-wrap">
+                                         {highlight.section && (
+                                           <span className="font-medium text-yellow-800">{highlight.section}</span>
+                                         )}
+                                         {highlight.paragraph && (
+                                           <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-700">
+                                             Para {highlight.paragraph}
+                                           </Badge>
+                                         )}
+                                       </div>
+                                       
+                                       {/* Context badges - only show if we have any */}
+                                       {contextItems.length > 0 && (
+                                         <div className="flex items-center gap-2 flex-wrap">
+                                           {contextItems.map((context, idx) => (
+                                             <Badge 
+                                               key={idx}
+                                               variant="outline" 
+                                               className={`text-xs capitalize ${context.color} ${context.textColor}`}
+                                             >
+                                               {context.label}
+                                             </Badge>
+                                           ))}
+                                         </div>
+                                       )}
+                                       
+                                       {/* Additional context - show as small text */}
+                                       {additionalContext.length > 0 && (
+                                         <div className="text-xs text-gray-600">
+                                           {additionalContext.map((ctx, idx) => (
+                                             <span key={idx}>
+                                               {cleanTextExcerpt(ctx)}
+                                               {idx < additionalContext.length - 1 && ' • '}
+                                             </span>
+                                           ))}
+                                         </div>
+                                       )}
+                                     </div>
+                                   </div>
+                                   
+                                   {/* Main content */}
+                                   <div className="text-sm text-yellow-700">
+                                     <p className="italic leading-relaxed">
+                                       "{cleanTextExcerpt(highlight.text_excerpt)}"
+                                     </p>
+                                   </div>
+                                 </div>
+                               )
+                             })}
                           </div>
                         </div>
                       ))}
@@ -468,30 +629,72 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
                 {!loading && !error && documentUrl && fileInfo && (
                   <div className="h-full border-2 border-gray-200 rounded-xl overflow-hidden shadow-inner bg-white flex flex-col">
-                                          {fileInfo.file_type?.toLowerCase().includes('pdf') ? (
+                                                                {fileInfo.file_type?.toLowerCase().includes('pdf') ? (
                         <div className="flex-1 relative">
-                          <iframe
-                            src={documentUrl}
-                            className="w-full h-full border-none"
-                            title={sanitizeText(fileInfo.original_filename || '')}
-                            data-file-id={selectedCell?.fileId}
-                            style={{ minHeight: '500px' }}
-                            sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
-                            referrerPolicy="strict-origin-when-cross-origin"
-                            loading="lazy"
-                          />
-                        <div className="absolute top-4 right-4">
-                          <a
-                            href={documentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            Open Full Screen
-                          </a>
+                          {!iframeError ? (
+                            <iframe
+                              src={`${documentUrl}#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH`}
+                              className="w-full h-full border-none"
+                              title={sanitizeText(fileInfo.original_filename || '')}
+                              data-file-id={selectedCell?.fileId}
+                              style={{ minHeight: '500px' }}
+                              sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups allow-modals"
+                              referrerPolicy="strict-origin-when-cross-origin"
+                              loading="eager"
+                              allow="fullscreen"
+                              onError={() => setIframeError(true)}
+                              onLoad={(e) => {
+                                // Check if iframe loaded successfully
+                                const iframe = e.target as HTMLIFrameElement
+                                try {
+                                  // This will throw if iframe is blocked
+                                  if (!iframe.contentDocument && !iframe.contentWindow) {
+                                    setTimeout(() => setIframeError(true), 2000)
+                                  }
+                                } catch {
+                                  setTimeout(() => setIframeError(true), 2000)
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full bg-gray-100">
+                              <div className="text-center p-8">
+                                <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                  PDF Preview Blocked
+                                </h3>
+                                <p className="text-gray-600 mb-4">
+                                  Your browser blocked the PDF preview for security reasons.
+                                </p>
+                                <a
+                                  href={documentUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  Open PDF in New Tab
+                                </a>
+                              </div>
+                            </div>
+                          )}
+                          <div className="absolute top-4 right-4 space-y-2">
+                            <a
+                              href={documentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                              Open Full Screen
+                            </a>
+                            {!iframeError && (
+                              <div className="text-xs text-gray-600 bg-white/90 p-2 rounded">
+                                If PDF doesn't load, click "Open Full Screen" above
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full space-y-4">
                         <div className="text-center">
