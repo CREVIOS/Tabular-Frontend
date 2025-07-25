@@ -43,8 +43,9 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Security-Policy',
             value: `
-              frame-src 'self' *.supabase.co *.amazonaws.com *.storage.googleapis.com https:;
+              frame-src 'self' *.supabase.co *.amazonaws.com *.storage.googleapis.com https: blob: data:;
               frame-ancestors 'self';
+              object-src 'self';
             `.replace(/\s+/g, ' ').trim()
           }
         ]

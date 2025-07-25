@@ -78,8 +78,51 @@ const cleanTextExcerpt = (text: string): string => {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const parseJsonString = (str: string): any => {
+  try {
+    // First try to parse as-is
+    return JSON.parse(str)
+  } catch {
+    try {
+      // Try to decode HTML entities first
+      const decoded = str
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+      return JSON.parse(decoded)
+    } catch {
+      // If it's still not valid JSON, return the original string
+      return str
+    }
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const parseSourceReference = (sourceRef: string): { raw: string; parsed?: any; isJson: boolean } => {
+  if (!sourceRef || typeof sourceRef !== 'string') {
+    return { raw: '', isJson: false }
+  }
+
+  // Check if it looks like JSON (starts with { or [)
+  const trimmed = sourceRef.trim()
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    const parsed = parseJsonString(trimmed)
+    if (typeof parsed === 'object') {
+      return { raw: sourceRef, parsed, isJson: true }
+    }
+  }
+
+  return { raw: sourceRef, isJson: false }
 }
 
 const isValidUrl = (url: string): boolean => {
@@ -238,6 +281,28 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [retrying, setRetrying] = useState(false)
   const [iframeError, setIframeError] = useState(false)
+  // FIX 2: Add loading state for iframe
+  const [iframeLoading, setIframeLoading] = useState(true)
+
+  // Helper function to create proxy URL for PDFs
+  const createProxyUrl = useCallback((originalUrl: string, page?: number): string => {
+    if (!originalUrl) return ''
+    
+    try {
+      const proxyUrl = new URL('/api/pdf-proxy', window.location.origin)
+      proxyUrl.searchParams.set('url', originalUrl)
+      
+      // Add page parameter if specified
+      if (page) {
+        proxyUrl.searchParams.set('page', page.toString())
+      }
+      
+      return proxyUrl.toString() + (page ? `#page=${page}` : '')
+    } catch (error) {
+      console.error('Error creating proxy URL:', error)
+      return originalUrl // Fallback to original URL
+    }
+  }, [])
 
   // Enhanced file fetching with better error handling
   const fetchFileInfo = useCallback(async (isRetry = false) => {
@@ -247,6 +312,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       if (isRetry) {
         setRetrying(true)
         setError(null)
+        setIframeError(false) // FIX 2: Reset iframe error on retry
       } else {
         setLoading(true)
         setError(null)
@@ -335,17 +401,64 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
     onClose()
   }, [onClose])
 
+  // FIX 2: Enhanced iframe load handling
+  const handleIframeLoad = useCallback((e: React.SyntheticEvent<HTMLIFrameElement>) => {
+    const iframe = e.target as HTMLIFrameElement
+    setIframeLoading(false)
+    
+    // Check if iframe loaded successfully
+    try {
+      // Test if we can access the iframe
+      if (iframe.contentDocument === null && iframe.contentWindow === null) {
+        // This usually means the iframe was blocked
+        setTimeout(() => {
+          setIframeError(true)
+        }, 1000)
+      }
+    } catch (error) {
+      console.warn('Iframe access restricted:', error)
+      // This is normal for cross-origin iframes, don't set error
+    }
+    
+    // Additional check for PDF loading
+    setTimeout(() => {
+      try {
+        if (iframe.contentDocument?.body?.innerHTML === '') {
+          setIframeError(true)
+        }
+      } catch {
+        // Cross-origin restriction, this is normal
+      }
+    }, 2000)
+  }, [])
+
+  const handleIframeError = useCallback(() => {
+    setIframeError(true)
+    setIframeLoading(false)
+  }, [])
+
   // Effects
   useEffect(() => {
     if (!selectedCell) return
     fetchFileInfo()
   }, [selectedCell, fetchFileInfo])
 
+  // FIX 2: Reset iframe states when documentUrl changes
+  useEffect(() => {
+    if (documentUrl) {
+      setIframeError(false)
+      setIframeLoading(true)
+    }
+  }, [documentUrl])
+
   if (!selectedCell) return null
 
   const displayValue = sanitizeText(selectedCell.longValue || selectedCell.value || '')
   const hasDetailedAnswer = selectedCell.longValue && selectedCell.longValue !== selectedCell.value
   const groupedHighlights = groupHighlightsByPage(validatedHighlightData)
+  
+  // FIX 1: Parse source reference
+  const sourceReference = parseSourceReference(selectedCell.sourceRef || '')
 
   return (
     <div
@@ -417,14 +530,66 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                   </div>
                 </div>
 
+                {/* FIX 1: Enhanced source reference display */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <ExternalLink className="h-4 w-4 text-gray-600" />
                     <h4 className="font-medium">Source</h4>
                   </div>
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <p className="text-sm text-amber-800 italic break-words">{sanitizeText(selectedCell.sourceRef || '')}</p>
-                  </div>
+                  
+                  {sourceReference.isJson && sourceReference.parsed ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <div className="space-y-3">
+                        <h5 className="font-medium text-amber-800 mb-2">Document Reference:</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                          {sourceReference.parsed.page && (
+                            <div>
+                              <span className="font-medium text-amber-700">Page:</span>
+                              <span className="ml-2 text-amber-800">{sourceReference.parsed.page}</span>
+                            </div>
+                          )}
+                          {sourceReference.parsed.section && (
+                            <div>
+                              <span className="font-medium text-amber-700">Section:</span>
+                              <span className="ml-2 text-amber-800">{cleanTextExcerpt(sourceReference.parsed.section)}</span>
+                            </div>
+                          )}
+                          {sourceReference.parsed.paragraph && (
+                            <div>
+                              <span className="font-medium text-amber-700">Paragraph:</span>
+                              <span className="ml-2 text-amber-800">{sourceReference.parsed.paragraph}</span>
+                            </div>
+                          )}
+                          {sourceReference.parsed.location_type && (
+                            <div>
+                              <span className="font-medium text-amber-700">Location:</span>
+                              <span className="ml-2 text-amber-800 capitalize">{cleanTextExcerpt(sourceReference.parsed.location_type)}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {sourceReference.parsed.text_excerpt && (
+                          <div className="mt-3 pt-3 border-t border-amber-200">
+                            <span className="font-medium text-amber-700">Excerpt:</span>
+                            <p className="mt-1 text-amber-700 italic">
+                              "{cleanTextExcerpt(sourceReference.parsed.text_excerpt)}"
+                            </p>
+                          </div>
+                        )}
+                        
+                        {sourceReference.parsed.bounding_info && (
+                          <div className="mt-2">
+                            <span className="font-medium text-amber-700">Context:</span>
+                            <span className="ml-2 text-amber-700 text-xs">{cleanTextExcerpt(sourceReference.parsed.bounding_info)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <p className="text-sm text-amber-800 italic break-words">{cleanTextExcerpt(sourceReference.raw)}</p>
+                    </div>
+                  )}
                 </div>
 
                 {Object.keys(groupedHighlights).length > 0 && (
@@ -445,7 +610,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                             </div>
                           </div>
                           <div className="p-4 space-y-4">
-                                                         {highlights.map((highlight, index) => {
+                            {highlights.map((highlight, index) => {
                                // Collect all available context information
                                const contextItems = []
                                
@@ -562,12 +727,17 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                              if (documentUrl && isValidUrl(documentUrl) && fileInfo?.file_type?.toLowerCase().includes('pdf')) {
                                // Validate page number for security
                                const pageNumber = Math.max(1, Math.min(10000, Math.floor(page)))
-                               const pageUrl = `${documentUrl}#page=${pageNumber}`
+                               
+                               // Use proxy URL for iframe to avoid CORS issues
+                               const proxyPageUrl = createProxyUrl(documentUrl, pageNumber)
                                
                                // Safer DOM manipulation with more specific selector
                                const iframe = document.querySelector(`iframe[data-file-id="${selectedCell?.fileId}"]`) as HTMLIFrameElement
-                               if (iframe && isValidUrl(pageUrl)) {
-                                 iframe.src = pageUrl
+                               if (iframe && proxyPageUrl) {
+                                 iframe.src = proxyPageUrl
+                                 // FIX 2: Reset loading state when navigating
+                                 setIframeLoading(true)
+                                 setIframeError(false)
                                }
                              }
                            }}
@@ -629,33 +799,32 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
                 {!loading && !error && documentUrl && fileInfo && (
                   <div className="h-full border-2 border-gray-200 rounded-xl overflow-hidden shadow-inner bg-white flex flex-col">
-                                                                {fileInfo.file_type?.toLowerCase().includes('pdf') ? (
+                    {fileInfo.file_type?.toLowerCase().includes('pdf') ? (
                         <div className="flex-1 relative">
-                          {!iframeError ? (
-                            <iframe
-                              src={`${documentUrl}#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH`}
-                              className="w-full h-full border-none"
-                              title={sanitizeText(fileInfo.original_filename || '')}
-                              data-file-id={selectedCell?.fileId}
-                              style={{ minHeight: '500px' }}
-                              sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups allow-modals"
-                              referrerPolicy="strict-origin-when-cross-origin"
-                              loading="eager"
-                              allow="fullscreen"
-                              onError={() => setIframeError(true)}
-                              onLoad={(e) => {
-                                // Check if iframe loaded successfully
-                                const iframe = e.target as HTMLIFrameElement
-                                try {
-                                  // This will throw if iframe is blocked
-                                  if (!iframe.contentDocument && !iframe.contentWindow) {
-                                    setTimeout(() => setIframeError(true), 2000)
-                                  }
-                                } catch {
-                                  setTimeout(() => setIframeError(true), 2000)
-                                }
-                              }}
-                            />
+                          {/* FIX 2: Show loading state for iframe */}
+                          {iframeLoading && !iframeError && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                              <div className="text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-200 border-t-blue-600 mx-auto mb-2"></div>
+                                <p className="text-sm text-gray-600">Loading PDF...</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                                                     {!iframeError ? (
+                             <iframe
+                               src={createProxyUrl(documentUrl, 1) + '&toolbar=1&navpanes=1&scrollbar=1&view=FitH'}
+                               className="w-full h-full border-none"
+                               title={sanitizeText(fileInfo.original_filename || '')}
+                               data-file-id={selectedCell?.fileId}
+                               style={{ minHeight: '500px' }}
+                               sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups allow-modals"
+                               referrerPolicy="strict-origin-when-cross-origin"
+                               loading="eager"
+                               allow="fullscreen"
+                               onError={handleIframeError}
+                               onLoad={handleIframeLoad}
+                             />
                           ) : (
                             <div className="flex items-center justify-center h-full bg-gray-100">
                               <div className="text-center p-8">
@@ -666,15 +835,36 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                                 <p className="text-gray-600 mb-4">
                                   Your browser blocked the PDF preview for security reasons.
                                 </p>
-                                <a
-                                  href={documentUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                  Open PDF in New Tab
-                                </a>
+                                <div className="space-y-2">
+                                  <a
+                                    href={documentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                    Open PDF in New Tab
+                                  </a>
+                                  <div className="text-center">
+                                                                         <Button
+                                       variant="outline"
+                                       size="sm"
+                                       onClick={() => {
+                                         setIframeError(false)
+                                         setIframeLoading(true)
+                                         // Force iframe reload with proxy URL
+                                         const iframe = document.querySelector(`iframe[data-file-id="${selectedCell?.fileId}"]`) as HTMLIFrameElement
+                                         if (iframe && documentUrl) {
+                                           iframe.src = createProxyUrl(documentUrl, 1) + '&toolbar=1&navpanes=1&scrollbar=1&view=FitH'
+                                         }
+                                       }}
+                                       className="gap-2"
+                                     >
+                                      <RefreshCw className="h-4 w-4" />
+                                      Try Again
+                                    </Button>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           )}
