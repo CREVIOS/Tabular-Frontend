@@ -51,7 +51,7 @@ function CenteredHeader({
     <Button
       variant="ghost"
       size="sm"
-      className="mx-auto flex items-center gap-1 text-center h-auto p-2"
+      className="mx-auto flex items-center gap-1 text-center h-auto p-1"
       onClick={handleSort}
     >
       {title}
@@ -107,7 +107,7 @@ export function createColumns({
         const rowIndex = row.index + 1
         
         return (
-          <div className="flex items-center gap-3 py-3 px-2">
+          <div className="flex items-center gap-2 py-2 px-2">
             {/* Row Number */}
             <span className="text-sm text-gray-500 w-6 text-center font-medium">
               {rowIndex}
@@ -122,7 +122,7 @@ export function createColumns({
             <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
             
             {/* Filename - Allow wrapping for long names */}
-            <span className="text-sm text-gray-900 flex-1 break-words leading-5">
+            <span className="text-sm text-gray-900 flex-1 break-words leading-tight">
               {row.original.fileName}
             </span>
           </div>
@@ -173,11 +173,11 @@ export function createColumns({
       header: ({ column }) => (
         <CenteredHeader
           title={
-            <div className="flex flex-col items-center space-y-1 p-2">
-              <span className="font-medium text-center break-words leading-tight">
+            <div className="flex flex-col items-center space-y-1 p-1 max-w-[200px]">
+              <span className="font-medium text-center break-words leading-tight text-xs">
                 {getFullColumnName(col.column_name)}
               </span>
-              <span className="text-[10px] text-muted-foreground text-center break-words leading-tight">
+              <span className="text-[9px] text-muted-foreground text-center break-words leading-tight">
                 {getFullPrompt(col.prompt)}
               </span>
             </div>
@@ -185,10 +185,10 @@ export function createColumns({
           column={column}
         />
       ),
-      meta: { className: "min-w-[250px]" },
-      size: 280,
-      minSize: 250,
-      maxSize: 400,
+      meta: { className: "min-w-[200px]" },
+      size: 220,
+      minSize: 200,
+      maxSize: 300,
       cell: ({ row }) => {
         const file   = row.original.file
         const key    = `${file.file_id}-${col.id}`
@@ -209,7 +209,7 @@ export function createColumns({
           return (
             <CenteredBox>
               <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-              <span className="text-[11px] text-blue-600">Analyzing…</span>
+              <span className="text-[10px] text-blue-600">Analyzing…</span>
             </CenteredBox>
           )
       
@@ -217,23 +217,23 @@ export function createColumns({
           return (
             <CenteredBox>
               <AlertCircle className="h-4 w-4 text-red-500" />
-              <span className="text-[11px] text-red-600">Failed</span>
+              <span className="text-[10px] text-red-600">Failed</span>
             </CenteredBox>
           )
       
         if (!res?.extracted_value)
           return (
-            <div className="w-full p-3 min-h-[80px]">
+            <div className="w-full p-2 min-h-[50px]">
               {!res ? (
                 // Show skeleton when no result exists yet (initial loading)
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
+                <div className="space-y-1">
+                  <Skeleton className="h-3 w-full" />
                   <Skeleton className="h-3 w-2/3" />
                 </div>
               ) : (
                 // Show "No data" only when processing is complete but no value found
                 <CenteredBox>
-                  <span className="text-[11px] text-muted-foreground">No data</span>
+                  <span className="text-[10px] text-muted-foreground">No data</span>
                 </CenteredBox>
               )}
             </div>
@@ -248,34 +248,25 @@ export function createColumns({
       
         return (
           <div
-            className={`group relative w-full rounded border border-transparent p-4 hover:border-blue-200 hover:bg-muted/30 transition-all duration-200 cursor-pointer min-h-[80px]
+            className={`group relative w-full rounded border border-transparent p-2 hover:border-blue-200 hover:bg-muted/30 transition-all duration-200 cursor-pointer min-h-[50px]
                         ${updated ? "border-green-300 bg-green-50 shadow-sm" : ""}`}
             onClick={handleCellClick}
-            title={`Confidence: ${confidence}%${
+            title={`${fullText}${confidence > 0 ? `\nConfidence: ${confidence}%` : ""}${
               res.source_reference ? `\nSource: ${res.source_reference}` : ""
             }`}
           >
-            <div className="text-[13px] leading-relaxed text-left w-full">
+            <div className="text-xs leading-relaxed text-left w-full">
               {/* Full text with natural wrapping - no line clamp or truncation */}
               <div 
                 className="break-words hyphens-auto whitespace-pre-wrap"
                 style={{
                   wordBreak: 'break-word',
                   overflowWrap: 'break-word',
-                  lineHeight: '1.5'
+                  lineHeight: '1.4'
                 }}
               >
                 {fullText}
               </div>
-              
-              {/* Confidence indicator */}
-              {confidence > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                  <span className="text-[10px] text-gray-500">
-                    Confidence: {confidence}%
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         )
@@ -299,7 +290,7 @@ export function createColumns({
 /* helper small bits  -------------------------------------------------------- */
 function CenteredBox({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-[80px] flex-col items-center justify-center gap-2 text-center p-3 rounded border border-gray-100 bg-gray-50/30">
+    <div className="flex min-h-[50px] flex-col items-center justify-center gap-1 text-center p-2 rounded border border-gray-100 bg-gray-50/30">
       {children}
     </div>
   )
