@@ -214,22 +214,6 @@ export default function ReviewDetailPage() {
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {reviewData?.name || 'Review Analysis'}
-                </h1>
-                <p className="text-base text-gray-600 mt-1">
-                  Real-time document analysis and data extraction
-                  {existingFiles.length > 0 && (
-                    <span className="ml-2 text-sm text-blue-600">
-                      • {existingFiles.length} document{existingFiles.length !== 1 ? 's' : ''}
-                      {existingFiles.length > 0 && existingFiles[0].folder && 
-                        ` from "${existingFiles[0].folder.name}" folder`
-                      }
-                    </span>
-                  )}
-                </p>
-              </div>
             </div>
             {/* Export button removed */}
           </div>
