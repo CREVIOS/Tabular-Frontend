@@ -36,7 +36,6 @@ export type ReviewTableRow = {
 }
 import { Skeleton } from "@/components/ui/skeleton"
 
-
 function CenteredHeader({
   title,
   column,
@@ -52,7 +51,7 @@ function CenteredHeader({
     <Button
       variant="ghost"
       size="sm"
-      className="mx-auto flex items-center gap-1 text-center"
+      className="mx-auto flex items-center gap-1 text-center h-auto p-2"
       onClick={handleSort}
     >
       {title}
@@ -71,17 +70,14 @@ interface CreateColumnsProps {
   isMobile?: boolean
 }
 
-// Helper function to truncate text to max 4 words
-function truncateToWords(text: string, maxWords: number = 4): string {
-  const words = text.split(' ')
-  if (words.length <= maxWords) return text
-  return words.slice(0, maxWords).join(' ') + '...'
+// Helper function to display full column name without truncation
+function getFullColumnName(text: string): string {
+  return text.trim()
 }
 
-// Helper function to truncate text to 2-3 lines (approximately 60-90 characters)
-function truncateToLines(text: string, maxChars: number = 90): string {
-  if (text.length <= maxChars) return text
-  return text.slice(0, maxChars) + '...'
+// Helper function to display full prompt without truncation
+function getFullPrompt(text: string): string {
+  return text.trim()
 }
 
 export function createColumns({
@@ -111,7 +107,7 @@ export function createColumns({
         const rowIndex = row.index + 1
         
         return (
-          <div className="flex items-center gap-3 py-2">
+          <div className="flex items-center gap-3 py-3 px-2">
             {/* Row Number */}
             <span className="text-sm text-gray-500 w-6 text-center font-medium">
               {rowIndex}
@@ -125,8 +121,8 @@ export function createColumns({
             {/* Document Icon - Always show for every row */}
             <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
             
-            {/* Filename */}
-            <span className="text-sm text-gray-900 truncate flex-1">
+            {/* Filename - Allow wrapping for long names */}
+            <span className="text-sm text-gray-900 flex-1 break-words leading-5">
               {row.original.fileName}
             </span>
           </div>
@@ -144,7 +140,7 @@ export function createColumns({
       id: "actions",
       header: () => <div className="text-center w-full">Actions</div>,
       enableSorting: false,
-      size: 80,
+      size: 100,
       cell: ({ row }) => {
         const fileId = row.original.file.file_id
         const handleRerunAnalysis = () => onRerunAnalysis(fileId, reviewId)
@@ -171,28 +167,28 @@ export function createColumns({
 
   /* ─────────────────────────────  dynamic columns  ────────────────────────── */
   const dynamicColumns: ColumnDef<ReviewTableRow>[] = columns.map(
-    (col,) => ({
+    (col) => ({
       id: col.id,
       accessorKey: `results.${col.id}`,
       header: ({ column }) => (
         <CenteredHeader
           title={
-            <div className="flex flex-col items-center">
-              <span className="truncate max-w-[8rem] font-medium">
-                {truncateToWords(col.column_name)}
+            <div className="flex flex-col items-center space-y-1 p-2">
+              <span className="font-medium text-center break-words leading-tight">
+                {getFullColumnName(col.column_name)}
               </span>
-              <span className="text-[10px] text-muted-foreground truncate max-w-[8rem]">
-                {truncateToWords(col.prompt)}
+              <span className="text-[10px] text-muted-foreground text-center break-words leading-tight">
+                {getFullPrompt(col.prompt)}
               </span>
             </div>
           }
           column={column}
         />
       ),
-      meta: { className: "w-48" },
-      size: 200,
-      minSize: 200,
-      maxSize: 250,
+      meta: { className: "min-w-[250px]" },
+      size: 280,
+      minSize: 250,
+      maxSize: 400,
       cell: ({ row }) => {
         const file   = row.original.file
         const key    = `${file.file_id}-${col.id}`
@@ -227,7 +223,7 @@ export function createColumns({
       
         if (!res?.extracted_value)
           return (
-            <div className="w-full p-3">
+            <div className="w-full p-3 min-h-[80px]">
               {!res ? (
                 // Show skeleton when no result exists yet (initial loading)
                 <div className="space-y-2">
@@ -243,37 +239,43 @@ export function createColumns({
             </div>
           )
       
-        /* ---- success with 2-3 line wrapping ---- */
+        /* ---- success with full text wrapping ---- */
         console.log('✅ Rendering data for:', key, res.extracted_value)
         const confidence = Math.round((res.confidence_score || 0) * 100)
         
-        // Use full text with line truncation instead of word truncation
+        // Use full text without any truncation
         const fullText = res.extracted_value || ''
-        const displayText = truncateToLines(fullText, 90)
       
         return (
           <div
-            className={`group relative w-full rounded border border-transparent p-3 hover:border-blue-200 hover:bg-muted/30 transition-all duration-200 cursor-pointer min-h-[70px]
+            className={`group relative w-full rounded border border-transparent p-4 hover:border-blue-200 hover:bg-muted/30 transition-all duration-200 cursor-pointer min-h-[80px]
                         ${updated ? "border-green-300 bg-green-50 shadow-sm" : ""}`}
             onClick={handleCellClick}
-            title={`${fullText}\nConfidence: ${confidence}%${
+            title={`Confidence: ${confidence}%${
               res.source_reference ? `\nSource: ${res.source_reference}` : ""
             }`}
           >
             <div className="text-[13px] leading-relaxed text-left w-full">
+              {/* Full text with natural wrapping - no line clamp or truncation */}
               <div 
-                className="break-words hyphens-auto"
+                className="break-words hyphens-auto whitespace-pre-wrap"
                 style={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                  lineHeight: '1.4',
-                  maxHeight: '4.2em' // 3 lines * 1.4 line-height
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                  lineHeight: '1.5'
                 }}
               >
-                {displayText}
+                {fullText}
               </div>
+              
+              {/* Confidence indicator */}
+              {confidence > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <span className="text-[10px] text-gray-500">
+                    Confidence: {confidence}%
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )
@@ -297,7 +299,7 @@ export function createColumns({
 /* helper small bits  -------------------------------------------------------- */
 function CenteredBox({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-[70px] flex-col items-center justify-center gap-2 text-center p-2 rounded border border-gray-100 bg-gray-50/30">
+    <div className="flex min-h-[80px] flex-col items-center justify-center gap-2 text-center p-3 rounded border border-gray-100 bg-gray-50/30">
       {children}
     </div>
   )
