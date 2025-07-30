@@ -173,11 +173,11 @@ export function createColumns({
       header: ({ column }) => (
         <CenteredHeader
           title={
-            <div className="flex flex-col items-center space-y-1 p-1 max-w-[200px]">
-              <span className="font-medium text-center break-words leading-tight text-xs">
+            <div className="flex flex-col items-center space-y-1 p-1 w-full max-w-full">
+              <span className="font-medium text-center break-words leading-tight text-xs w-full px-1 overflow-hidden">
                 {getFullColumnName(col.column_name)}
               </span>
-              <span className="text-[9px] text-muted-foreground text-center break-words leading-tight">
+              <span className="text-[9px] text-muted-foreground text-center break-words leading-tight w-full px-1 overflow-hidden">
                 {getFullPrompt(col.prompt)}
               </span>
             </div>
