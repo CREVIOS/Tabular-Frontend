@@ -76,10 +76,6 @@ export function FoldersDataTable({
     },
   })
 
-  const selectedCount = table.getFilteredSelectedRowModel().rows.length
-  const totalCount = table.getFilteredRowModel().rows.length
-  const totalFiles = data.reduce((sum, folder) => sum + (folder.file_count || 0), 0)
-
   return (
     <div className="w-full space-y-3">
       {/* Header */}
