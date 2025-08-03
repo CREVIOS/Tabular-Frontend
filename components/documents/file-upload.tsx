@@ -24,6 +24,7 @@ import {
   Files, 
   Folder,
   Check,
+  CheckCircle,
   AlertTriangle,
   Loader2,
   RefreshCw
@@ -55,6 +56,8 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<FileWithStatus[]>([])
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploadComplete, setUploadComplete] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
 
@@ -199,7 +202,15 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
         )
         
         if (allSuccessful) {
-          onUploadSuccess()
+          setUploadComplete(true)
+          setSuccessMessage(`Successfully uploaded ${files.length} file${files.length !== 1 ? 's' : ''}!`)
+          setTimeout(() => {
+            onUploadSuccess()
+            setUploadComplete(false)
+            setSuccessMessage(null)
+            setSelectedFiles([])
+            setFiles([])
+          }, 2000)
         }
       } catch (error) {
         console.error("Unexpected error during upload:", error)
@@ -506,11 +517,20 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
         </FileUploadList>
       </ShadcnFileUpload>
 
-      {/* Error alert */}
+      {/* Status alerts */}
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-sm break-words">{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      {uploadComplete && successMessage && (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-sm text-green-800 font-medium">
+            {successMessage}
+          </AlertDescription>
         </Alert>
       )}
     </div>
