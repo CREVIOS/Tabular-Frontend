@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, Search, Upload, Filter } from "lucide-react"
+import { ChevronDown, Search, Upload, Filter, FileText } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -153,24 +153,25 @@ export function FilesDataTable({
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className="h-12">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-50 hover:to-gray-100 border-b-2 border-gray-200">
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="font-semibold text-gray-700 text-center py-4">
+                    <div className="flex items-center justify-center">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
                             header.getContext()
                           )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
+                    </div>
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
@@ -185,14 +186,16 @@ export function FilesDataTable({
                   </TableCell>
                 </TableRow>
               ) : table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
+                table.getRowModel().rows.map((row, index) => (
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className="hover:bg-muted/50"
+                    className={`hover:bg-blue-50 cursor-pointer transition-colors ${
+                      index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                    }`}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-4 align-middle">
+                      <TableCell key={cell.id} className="py-4 text-center">
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
@@ -205,60 +208,72 @@ export function FilesDataTable({
                 <TableRow>
                   <TableCell
                     colSpan={columns.length}
-                    className="h-24 text-center"
+                    className="h-32 text-center"
                   >
-                    <div className="flex flex-col items-center space-y-2">
-                      <p className="text-muted-foreground">No files found</p>
-                      {onUpload && (
-                        <Button variant="outline" onClick={onUpload}>
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload Your First File
-                        </Button>
-                      )}
+                    <div className="flex flex-col items-center justify-center space-y-4 py-8">
+                      <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+                        <FileText className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <div className="text-center">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No files found</h3>
+                        <p className="text-sm text-gray-500 mb-6 max-w-md">
+                          Upload files or check if any filters are applied
+                        </p>
+                        {onUpload && (
+                          <Button 
+                            onClick={onUpload}
+                            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload First File
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
-        </div>
 
         {/* Pagination */}
         {table.getRowModel().rows?.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-sm text-muted-foreground">
-              Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-              {Math.min(
-                (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                table.getFilteredRowModel().rows.length
-              )}{" "}
-              of {table.getFilteredRowModel().rows.length} files
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                Previous
-              </Button>
-              <div className="flex items-center space-x-1">
-                <span className="text-sm">Page</span>
-                <span className="text-sm font-medium">
-                  {table.getState().pagination.pageIndex + 1} of{" "}
-                  {table.getPageCount()}
-                </span>
+          <div className="bg-gray-50 p-4 rounded-lg border">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-gray-600">
+                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+                {Math.min(
+                  (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                  table.getFilteredRowModel().rows.length
+                )}{" "}
+                of {table.getFilteredRowModel().rows.length} files
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Next
-              </Button>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center space-x-1">
+                  <span className="text-sm">Page</span>
+                  <span className="text-sm font-medium">
+                    {table.getState().pagination.pageIndex + 1} of{" "}
+                    {table.getPageCount()}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
         )}

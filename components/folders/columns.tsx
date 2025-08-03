@@ -113,16 +113,16 @@ export const createFolderColumns = ({
     {
       accessorKey: "name",
       header: ({ column }) => {
-        return (
+                return (
           <Button
-            variant="ghost"
+            variant="ghost" 
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             className="h-auto p-0 hover:bg-transparent"
           >
             <div className="flex items-center gap-1">
-              <FolderOpen className="h-3 w-3 sm:h-4 sm:w-4" />
+              <FolderOpen className="h-4 w-4" />
               <span>Folder</span>
-              <ArrowUpDown className="h-3 w-3 sm:h-4 sm:w-4" />
+              <ArrowUpDown className="h-4 w-4" />
             </div>
           </Button>
         )
@@ -130,22 +130,22 @@ export const createFolderColumns = ({
       cell: ({ row }) => {
         const folder = row.original
         return (
-          <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center justify-start gap-3 min-w-0">
             <div 
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-white/20"
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-white/20"
               style={{ 
                 backgroundColor: folder.color || '#6366F1',
                 background: `linear-gradient(135deg, ${folder.color || '#6366F1'}, ${folder.color || '#6366F1'}dd)`
               }}
             >
-              <FolderOpen className="h-5 w-5 sm:h-6 sm:w-6 text-white drop-shadow-sm" />
+              <FolderOpen className="h-4 w-4 text-white drop-shadow-sm" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-gray-900 truncate text-sm sm:text-base">
+              <div className="font-semibold text-gray-900 truncate text-sm">
                 {folder.name}
               </div>
               {folder.description && (
-                <div className="text-xs sm:text-sm text-gray-600 truncate mt-0.5">
+                <div className="text-xs text-gray-600 truncate mt-0.5">
                   {folder.description}
                 </div>
               )}
