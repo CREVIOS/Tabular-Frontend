@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, Search, Upload, Filter, MoreHorizontal } from "lucide-react"
+import { ChevronDown, Search, Upload, Filter } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,7 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
 import { FileTableRow } from "./columns"
 
 interface FilesDataTableProps {
@@ -87,20 +87,19 @@ export function FilesDataTable({
   const totalCount = table.getFilteredRowModel().rows.length
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg font-semibold">Files</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {totalCount} file{totalCount !== 1 ? 's' : ''} total
-              {selectedCount > 0 && ` • ${selectedCount} selected`}
-            </p>
-          </div>
+    <div className="w-full space-y-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold">Files</h3>
+          <p className="text-sm text-muted-foreground">
+            {totalCount} file{totalCount !== 1 ? 's' : ''} total
+            {selectedCount > 0 && ` • ${selectedCount} selected`}
+          </p>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-4">
+      <div className="space-y-4">
         {/* Filters and Search */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="relative flex-1 max-w-sm">
@@ -150,42 +149,11 @@ export function FilesDataTable({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Column Visibility */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <MoreHorizontal className="h-4 w-4 mr-2" />
-                  Columns
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
-                      >
-                        {column.id.replace('_', ' ')}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
 
         {/* Table */}
-        <div className="rounded-md border">
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -224,7 +192,7 @@ export function FilesDataTable({
                     className="hover:bg-muted/50"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3">
+                      <TableCell key={cell.id} className="py-4 align-middle">
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
@@ -294,7 +262,7 @@ export function FilesDataTable({
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

@@ -13,18 +13,11 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, Search, FolderPlus, MoreHorizontal } from "lucide-react"
+import { Search, FolderPlus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+
 import {
   Table,
   TableBody,
@@ -34,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
 import { FolderTableRow } from "./columns"
 
 interface FoldersDataTableProps {
@@ -88,27 +81,25 @@ export function FoldersDataTable({
   const totalFiles = data.reduce((sum, folder) => sum + (folder.file_count || 0), 0)
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg font-semibold">Folders</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {totalCount} folder{totalCount !== 1 ? 's' : ''} • {totalFiles} file{totalFiles !== 1 ? 's' : ''}
-              {selectedCount > 0 && ` • ${selectedCount} selected`}
-            </p>
-          </div>
-          
-          {onCreateFolder && (
-            <Button onClick={onCreateFolder} className="bg-purple-600 hover:bg-purple-700">
-              <FolderPlus className="h-4 w-4 mr-2" />
-              Create Folder
-            </Button>
-          )}
+    <div className="w-full space-y-3">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {totalCount} folder{totalCount !== 1 ? 's' : ''} • {totalFiles} file{totalFiles !== 1 ? 's' : ''}
+            {selectedCount > 0 && ` • ${selectedCount} selected`}
+          </p>
         </div>
-      </CardHeader>
+        
+        {onCreateFolder && (
+          <Button onClick={onCreateFolder} className="bg-purple-600 hover:bg-purple-700">
+            <FolderPlus className="h-4 w-4 mr-2" />
+            Create Folder
+          </Button>
+        )}
+      </div>
 
-      <CardContent className="space-y-4">
+      <div className="space-y-3">
         {/* Filters and Search */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="relative flex-1 max-w-sm">
@@ -121,43 +112,11 @@ export function FoldersDataTable({
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Column Visibility */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <MoreHorizontal className="h-4 w-4 mr-2" />
-                  Columns
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
-                      >
-                        {column.id.replace('_', ' ')}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+
         </div>
 
         {/* Table */}
-        <div className="rounded-md border">
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -196,12 +155,12 @@ export function FoldersDataTable({
                     className="hover:bg-muted/50"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
+                                        <TableCell key={cell.id} className="py-4 align-middle">
+                    {flexRender(
+                      cell.column.columnDef.cell,
+                      cell.getContext()
+                    )}
+                  </TableCell>
                     ))}
                   </TableRow>
                 ))
@@ -266,7 +225,7 @@ export function FoldersDataTable({
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 
 // API imports
 import { fetchReviewsData } from '@/lib/api/reviews-api'
@@ -192,12 +192,6 @@ function TabularReviewPageContent() {
 
         {/* Main Content */}
         <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <CardTitle className="text-xl font-semibold">Your Reviews</CardTitle>
-            </div>
-          </CardHeader>
-
           <CardContent className="p-0">
             <ReviewDataTable
               columns={columns}

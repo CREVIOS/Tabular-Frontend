@@ -21,6 +21,7 @@ import { DataTableSkeleton } from '@/components/ui/loading-skeletons'
 
 // Icons
 import { FolderOpen } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 const folderColors = [
   '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', 
@@ -217,7 +218,17 @@ export default function DocumentsPage() {
           <div className="bg-white rounded-lg shadow-sm border">
             {/* Action Bar */}
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Folders</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold">Folders</h2>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {folders.length} folders
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {folders.reduce((sum, folder) => sum + (folder.file_count || 0), 0)} files
+                  </Badge>
+                </div>
+              </div>
               <Button 
                 onClick={() => setShowCreateFolder(true)}
                 size="sm"

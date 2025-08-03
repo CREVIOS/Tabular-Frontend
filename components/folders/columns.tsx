@@ -130,19 +130,22 @@ export const createFolderColumns = ({
       cell: ({ row }) => {
         const folder = row.original
         return (
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-4 min-w-0">
             <div 
-              className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: folder.color || '#6366F1' }}
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-white/20"
+              style={{ 
+                backgroundColor: folder.color || '#6366F1',
+                background: `linear-gradient(135deg, ${folder.color || '#6366F1'}, ${folder.color || '#6366F1'}dd)`
+              }}
             >
-              <FolderOpen className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+              <FolderOpen className="h-5 w-5 sm:h-6 sm:w-6 text-white drop-shadow-sm" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-gray-900 truncate text-sm sm:text-base">
+              <div className="font-semibold text-gray-900 truncate text-sm sm:text-base">
                 {folder.name}
               </div>
               {folder.description && (
-                <div className="text-xs sm:text-sm text-gray-500 truncate">
+                <div className="text-xs sm:text-sm text-gray-600 truncate mt-0.5">
                   {folder.description}
                 </div>
               )}
@@ -171,8 +174,8 @@ export const createFolderColumns = ({
       cell: ({ row }) => {
         const count = row.getValue("file_count") as number
         return (
-          <div className="text-center">
-            <Badge variant="outline" className="text-xs">
+          <div className="flex items-center justify-center">
+            <Badge variant="secondary" className="text-xs font-medium px-2.5 py-1">
               {count || 0}
             </Badge>
           </div>
@@ -206,8 +209,10 @@ export const createFolderColumns = ({
         }
         
         return (
-          <div className="text-center text-sm text-gray-600">
-            {formatSize(size || 0)}
+          <div className="flex items-center justify-center">
+            <span className="text-sm text-gray-600 font-medium">
+              {formatSize(size || 0)}
+            </span>
           </div>
         )
       },
@@ -231,8 +236,10 @@ export const createFolderColumns = ({
       cell: ({ row }) => {
         const date = new Date(row.getValue("created_at"))
         return (
-          <div className="text-center text-sm text-gray-600">
-            {date.toLocaleDateString()}
+          <div className="flex items-center justify-center">
+            <span className="text-sm text-gray-600">
+              {date.toLocaleDateString()}
+            </span>
           </div>
         )
       },
@@ -244,13 +251,14 @@ export const createFolderColumns = ({
         const folder = row.original
 
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
+          <div className="flex items-center justify-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -281,7 +289,8 @@ export const createFolderColumns = ({
                 <DeleteFolderDialog folder={folder} onDeleteFolder={onDeleteFolder} />
               )}
             </DropdownMenuContent>
-          </DropdownMenu>
+            </DropdownMenu>
+          </div>
         )
       },
     },

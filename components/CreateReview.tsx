@@ -16,6 +16,7 @@ import {
   Upload,
   FolderPlus
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -191,25 +192,61 @@ export default function EnhancedCreateReview({
   }
 
   const validateForm = () => {
+    // Clear any existing error
+    setError(null)
+
     if (!reviewData.name.trim()) {
-      setError('Review name is required')
+      const errorMsg = 'Review name is required'
+      setError(errorMsg)
+      toast.error('Missing Review Name', {
+        description: 'Please enter a name for your review to continue.',
+        duration: 4000,
+      })
       return false
     }
 
     if (reviewData.review_scope === 'folder' && !reviewData.folder_id) {
-      setError('Please select a folder for folder-based review')
+      const errorMsg = 'Please select a folder for folder-based review'
+      setError(errorMsg)
+      toast.error('No Folder Selected', {
+        description: 'Please choose a folder to analyze for this review.',
+        duration: 4000,
+      })
       return false
     }
 
     if (reviewData.review_scope === 'files' && (!reviewData.file_ids || reviewData.file_ids.length === 0)) {
-      setError('Please select files for file-based review')
+      const errorMsg = 'Please select files for file-based review'
+      setError(errorMsg)
+      toast.error('No Files Selected', {
+        description: 'Please choose at least one file to include in this review.',
+        duration: 4000,
+      })
       return false
     }
 
     const validColumns = reviewData.columns.filter(col => col.column_name.trim() && col.prompt.trim())
     if (validColumns.length === 0) {
-      setError('At least one complete column (name and prompt) is required')
+      const errorMsg = 'At least one complete column (name and prompt) is required'
+      setError(errorMsg)
+      toast.error('Incomplete Analysis Columns', {
+        description: 'Please add at least one column with both a name and extraction prompt.',
+        duration: 4000,
+      })
       return false
+    }
+
+    // Validate individual columns for better feedback
+    const hasIncompleteColumns = reviewData.columns.some(col => 
+      (col.column_name.trim() && !col.prompt.trim()) || 
+      (!col.column_name.trim() && col.prompt.trim())
+    )
+
+    if (hasIncompleteColumns) {
+      toast.warning('Incomplete Columns Detected', {
+        description: 'Some columns are missing either a name or prompt. Complete or remove them.',
+        duration: 4000,
+      })
     }
 
     return true
@@ -253,11 +290,25 @@ export default function EnhancedCreateReview({
       }
 
       console.log('Review created successfully:', result.data)
+      
+      // Show success toast
+      toast.success('Review Created Successfully!', {
+        description: `"${reviewData.name}" is now being analyzed. You'll be redirected to view the results.`,
+        duration: 3000,
+      })
+      
       onSuccess(result.data.id)
       
     } catch (error: unknown) {
       console.error('Failed to create review:', error)
-      setError(error instanceof Error ? error.message : 'Failed to create review')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create review'
+      setError(errorMessage)
+      
+      // Show detailed error in toast
+      toast.error('Review Creation Failed', {
+        description: errorMessage,
+        duration: 5000,
+      })
     } finally {
       setLoading(false)
     }

@@ -150,9 +150,11 @@ export const createFileColumns = ({
       }
       
       return (
-        <span className="text-xs sm:text-sm text-gray-700">
-          {formatFileSize(fileSize)}
-        </span>
+        <div className="flex items-center justify-center">
+          <span className="text-xs sm:text-sm text-gray-700 font-medium">
+            {formatFileSize(fileSize)}
+          </span>
+        </div>
       )
     },
   },
@@ -214,13 +216,15 @@ export const createFileColumns = ({
       const Icon = config.icon
       
       return (
-        <Badge 
-          variant={config.variant} 
-          className={`capitalize text-xs flex items-center gap-1 ${config.bg} ${config.color} border-0`}
-        >
-          <Icon className={`h-3 w-3 ${status === 'processing' || status === 'queued' ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:inline">{status}</span>
-        </Badge>
+        <div className="flex items-center justify-center">
+          <Badge 
+            variant={config.variant} 
+            className={`capitalize text-xs flex items-center gap-1 ${config.bg} ${config.color} border-0`}
+          >
+            <Icon className={`h-3 w-3 ${status === 'processing' || status === 'queued' ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">{status}</span>
+          </Badge>
+        </div>
       )
     },
     filterFn: (row, id, value) => {
@@ -247,7 +251,7 @@ export const createFileColumns = ({
       
       if (!folderName) {
         return (
-          <div className="flex items-center gap-1 text-xs text-gray-400">
+          <div className="flex items-center justify-center gap-1 text-xs text-gray-400">
             <div className="w-2 h-2 rounded-full bg-gray-300" />
             <span className="hidden sm:inline">No Folder</span>
             <span className="sm:hidden">—</span>
@@ -256,12 +260,12 @@ export const createFileColumns = ({
       }
       
       return (
-        <div className="flex items-center gap-2 max-w-[8rem] sm:max-w-none">
+        <div className="flex items-center justify-center gap-2">
           <div 
             className="w-2 h-2 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
             style={{ backgroundColor: folderColor || '#6b7280' }}
           />
-          <span className="text-xs sm:text-sm text-gray-700 font-medium truncate" title={folderName}>
+          <span className="text-xs sm:text-sm text-gray-700 font-medium truncate max-w-[6rem] sm:max-w-[8rem]" title={folderName}>
             {folderName}
           </span>
         </div>
@@ -302,9 +306,11 @@ export const createFileColumns = ({
       }
       
       return (
-        <span className="text-xs sm:text-sm text-gray-600">
-          {formatDate(uploadDate)}
-        </span>
+        <div className="flex items-center justify-center">
+          <span className="text-xs sm:text-sm text-gray-600">
+            {formatDate(uploadDate)}
+          </span>
+        </div>
       )
     },
   },
@@ -315,13 +321,14 @@ export const createFileColumns = ({
       const file = row.original
 
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
+        <div className="flex items-center justify-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -384,7 +391,8 @@ export const createFileColumns = ({
               </Dialog>
             )}
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </div>
       )
     },
   },
