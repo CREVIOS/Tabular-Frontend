@@ -89,6 +89,8 @@ function ReviewContent({ children }: { children: React.ReactNode }) {
           isAuthenticated={isAuthenticated}
           onLogout={handleLogout}
           showUserInfo={true}
+          showBackButton={true}
+          onBack={() => router.push('/review')}
         />
         
         <main className="flex-1 overflow-y-auto">

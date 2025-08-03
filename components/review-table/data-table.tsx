@@ -138,7 +138,6 @@ export function DataTable({
   const [exportConfig, setExportConfig] = React.useState({
     selectedColumns: reviewColumns?.map(col => col.id) || [],
     answerType: 'short' as 'short' | 'long' | 'both',
-    includeConfidence: true,
     includeSource: false
   })
 
@@ -298,10 +297,6 @@ export function DataTable({
           headers.push(`${column.column_name} (Long)`)
           prompts.push(column.prompt)
           prompts.push(column.prompt)
-          if (exportConfig.includeConfidence) {
-            headers.push(`${column.column_name} (Confidence)`)
-            prompts.push('Confidence Score (%)')
-          }
           if (exportConfig.includeSource) {
             headers.push(`${column.column_name} (Source)`)
             prompts.push('Source Reference')
@@ -310,10 +305,6 @@ export function DataTable({
           const suffix = exportConfig.answerType === 'long' ? ' (Long)' : ''
           headers.push(`${column.column_name}${suffix}`)
           prompts.push(column.prompt)
-          if (exportConfig.includeConfidence) {
-            headers.push(`${column.column_name} (Confidence)`)
-            prompts.push('Confidence Score (%)')
-          }
           if (exportConfig.includeSource) {
             headers.push(`${column.column_name} (Source)`)
             prompts.push('Source Reference')
@@ -338,10 +329,6 @@ export function DataTable({
             // Long answer  
             exportRow.push(result?.long || '')
             
-            if (exportConfig.includeConfidence) {
-              const confidence = result?.confidence_score ? Math.round(result.confidence_score * 100) : 0
-              exportRow.push(confidence)
-            }
             if (exportConfig.includeSource) {
               exportRow.push(result?.source_reference || '')
             }
@@ -352,10 +339,6 @@ export function DataTable({
               : (result?.extracted_value || '')
             exportRow.push(value)
             
-            if (exportConfig.includeConfidence) {
-              const confidence = result?.confidence_score ? Math.round(result.confidence_score * 100) : 0
-              exportRow.push(confidence)
-            }
             if (exportConfig.includeSource) {
               exportRow.push(result?.source_reference || '')
             }
@@ -459,7 +442,6 @@ export function DataTable({
         ['Status', reviewStatus],
         ['Answer Type', exportConfig.answerType === 'both' ? 'Short & Long' : 
                      exportConfig.answerType === 'long' ? 'Long Answer' : 'Short Answer'],
-        ['Include Confidence', exportConfig.includeConfidence ? 'Yes' : 'No'],
         ['Include Source', exportConfig.includeSource ? 'Yes' : 'No'],
         ['Total Files', totalFiles.toString()],
         ['Selected Columns', exportConfig.selectedColumns.length.toString()],
@@ -837,16 +819,7 @@ export function DataTable({
             <div className="space-y-3">
               <Label className="text-base font-semibold">Additional Data</Label>
               <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="confidence"
-                    checked={exportConfig.includeConfidence}
-                    onCheckedChange={(checked) => 
-                      setExportConfig(prev => ({ ...prev, includeConfidence: checked as boolean }))
-                    }
-                  />
-                  <Label htmlFor="confidence">Include Confidence Scores</Label>
-                </div>
+
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="source"
@@ -917,7 +890,6 @@ export function DataTable({
                 <p>• {totalFiles} document(s) to export</p>
                 <p>• Answer type: {exportConfig.answerType === 'both' ? 'Short & Long' : 
                                exportConfig.answerType === 'long' ? 'Long Answer' : 'Short Answer'}</p>
-                {exportConfig.includeConfidence && <p>• Confidence scores included</p>}
                 {exportConfig.includeSource && <p>• Source references included</p>}
               </div>
             </div>
