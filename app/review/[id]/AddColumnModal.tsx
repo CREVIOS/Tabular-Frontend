@@ -60,7 +60,7 @@ const formSchema = z.object({
   prompt: z
     .string()
     .min(10, 'Prompt must be at least 10 characters')
-    .max(2000, 'Prompt must be less than 2000 characters')
+    .max(4000, 'Prompt must be less than 4000 characters')
     .trim(),
   data_type: z.enum(['text', 'number', 'date', 'boolean', 'currency', 'percentage'])
 })

@@ -1,7 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { fetchDocumentsData, createFolder } from '@/lib/api/documents-api'
 import type { Folder as ApiFolder } from '@/lib/api/types'
 
@@ -18,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { PageHeaderSkeleton, DataTableSkeleton } from '@/components/ui/loading-skeletons'
+import { DataTableSkeleton } from '@/components/ui/loading-skeletons'
 
 // Icons
 import { FolderOpen } from 'lucide-react'
@@ -30,13 +29,11 @@ const folderColors = [
 
 export default function DocumentsPage() {
   const router = useRouter()
-  const supabase = createClient()
   
   // State
   const [folders, setFolders] = useState<ApiFolder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   
   // Modal states
   const [showCreateFolder, setShowCreateFolder] = useState(false)
@@ -48,47 +45,8 @@ export default function DocumentsPage() {
   })
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('Auth error:', error)
-          setIsAuthenticated(false)
-          router.push('/login')
-          return
-        }
-        
-        if (!session) {
-          setIsAuthenticated(false)
-          router.push('/login')
-          return
-        }
-        
-        setIsAuthenticated(true)
-        fetchData()
-      } catch (error) {
-        console.error('Authentication check failed:', error)
-        setIsAuthenticated(false)
-        router.push('/login')
-      }
-    }
-    
-    checkAuth()
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          setIsAuthenticated(false)
-          router.push('/login')
-        } else if (session) {
-          setIsAuthenticated(true)
-        }
-      }
-    )
-    
-    return () => subscription.unsubscribe()
-  }, [router, supabase.auth])
+    fetchData()
+  }, [])
 
   const fetchData = async () => {
     try {
@@ -193,40 +151,9 @@ export default function DocumentsPage() {
     ...folder
   }))
 
-  // Show loading state while checking authentication
-  if (isAuthenticated === null) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-          <PageHeaderSkeleton />
-          <DataTableSkeleton />
-        </div>
-      </div>
-    )
-  }
-
-  // Redirect if not authenticated
-  if (isAuthenticated === false) {
-    return null
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Header */}
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-            <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
-              <FolderOpen className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">
-              Document Management
-            </h1>
-          </div>
-          <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto mb-6 sm:mb-8 px-4">
-            Organize your documents into folders and create AI-powered reviews
-          </p>
-        </div>
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto">
 
         {/* Error Alert */}
         {error && (
@@ -239,44 +166,42 @@ export default function DocumentsPage() {
 
         {/* Create Folder Dialog */}
         <Dialog open={showCreateFolder} onOpenChange={setShowCreateFolder}>
-          <DialogContent className="w-[95vw] max-w-md mx-auto">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Folder</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium mb-2">
                   Folder Name *
                 </label>
                 <Input
                   placeholder="e.g., Contracts, Invoices, Reports"
                   value={newFolderData.name}
                   onChange={(e) => setNewFolderData(prev => ({ ...prev, name: e.target.value }))}
-                  className="touch-target"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium mb-2">
                   Description (Optional)
                 </label>
                 <Textarea
-                  placeholder="Brief description of this folder's purpose..."
+                  placeholder="Brief description..."
                   value={newFolderData.description}
                   onChange={(e) => setNewFolderData(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
-                  className="touch-target"
                 />
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                <Button onClick={createFolderHandler} className="flex-1 touch-target">
+              <div className="flex gap-3 pt-4">
+                <Button onClick={createFolderHandler} className="flex-1">
                   Create Folder
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => setShowCreateFolder(false)}
-                  className="flex-1 touch-target"
+                  className="flex-1"
                 >
                   Cancel
                 </Button>
@@ -289,29 +214,21 @@ export default function DocumentsPage() {
         {loading ? (
           <DataTableSkeleton />
         ) : (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+          <div className="bg-white rounded-lg shadow-sm border">
             {/* Action Bar */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 border-b border-gray-200">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Your Folders</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  {folders.length} folder{folders.length !== 1 ? 's' : ''} • Organize your documents
-                </p>
-              </div>
-              
-              <div className="flex gap-3 w-full sm:w-auto">
-                <Button 
-                  onClick={() => setShowCreateFolder(true)}
-                  className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700"
-                >
-                  <FolderOpen className="h-4 w-4 mr-2" />
-                  New Folder
-                </Button>
-              </div>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">Folders</h2>
+              <Button 
+                onClick={() => setShowCreateFolder(true)}
+                size="sm"
+              >
+                <FolderOpen className="h-4 w-4 mr-2" />
+                New Folder
+              </Button>
             </div>
 
             {/* Folders Table */}
-            <div className="p-6">
+            <div className="p-4">
               <FoldersDataTable
                 columns={folderColumns}
                 data={folderTableData}
@@ -322,11 +239,11 @@ export default function DocumentsPage() {
 
         {/* Upload Files Dialog */}
         <Dialog open={showUploadFiles} onOpenChange={setShowUploadFiles}>
-          <DialogContent className="w-[95vw] max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                Upload Files {uploadFolderId && folders.find(f => f.id === uploadFolderId)?.name && 
-                  `to ${folders.find(f => f.id === uploadFolderId)?.name}`}
+                Upload Files{uploadFolderId && folders.find(f => f.id === uploadFolderId)?.name && 
+                  ` to ${folders.find(f => f.id === uploadFolderId)?.name}`}
               </DialogTitle>
             </DialogHeader>
             <div className="py-4">

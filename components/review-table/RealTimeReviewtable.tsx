@@ -60,6 +60,18 @@ interface ReviewResult {
 
 type RealTimeUpdates = GlobalRealTimeUpdates
 
+interface FileItem {
+  id: string
+  original_filename: string
+  file_size: number | null
+  status: string | null
+  folder_id: string | null
+  created_at: string | null
+  folder?: {
+    name: string
+  }
+}
+
 interface RealTimeReviewTableProps {
   reviewId: string
   onStartAnalysis?: () => void
@@ -67,6 +79,7 @@ interface RealTimeReviewTableProps {
   onFilesAdded?: () => void
   reviewName?: string
   reviewStatus?: string
+  existingFiles?: FileItem[]
 }
 
 const useCellDataStore = () => {
@@ -215,7 +228,8 @@ export default function RealTimeReviewTable({
   onColumnAdded,
   onFilesAdded,
   reviewName = "Document Review",
-  reviewStatus = "draft"
+  reviewStatus = "draft",
+  existingFiles = []
 }: RealTimeReviewTableProps) {
   // Internal state management
   const [columns, setColumns] = useState<ReviewColumn[]>([])
@@ -682,7 +696,7 @@ export default function RealTimeReviewTable({
           prompt: col.prompt,
           data_type: col.data_type
         }))}
-        existingFiles={files.map(file => ({
+        existingFiles={existingFiles.length > 0 ? existingFiles : files.map(file => ({
           id: file.file_id,
           original_filename: file.filename,
           file_size: file.file_size,
@@ -690,7 +704,7 @@ export default function RealTimeReviewTable({
           folder_id: null,
           created_at: file.added_at
         }))}
-        existingFileIds={files.map(file => file.file_id)}
+        existingFileIds={existingFiles.length > 0 ? existingFiles.map(file => file.id) : files.map(file => file.file_id)}
       />
 
       {/* Document Viewer Modal */}

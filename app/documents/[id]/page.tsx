@@ -1,7 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { fetchFolderDetails } from '@/lib/api/documents-api'
 import type { Folder as ApiFolder, File as ApiFile } from '@/lib/api/types'
 
@@ -25,12 +24,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { FolderDetailSkeleton } from '@/components/ui/loading-skeletons'
 
 // Icons
 import { 
   FolderOpen, 
-  ArrowLeft, 
   Upload, 
   RefreshCw, 
   FileText,
@@ -49,14 +46,12 @@ interface FolderDetailState {
   files: ApiFile[]
   loading: boolean
   error: string | null
-  isAuthenticated: boolean | null
   showUpload: boolean
 }
 
 export default function FolderDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const supabase = createClient()
   const folderId = params.id as string
   
   // Consolidated state
@@ -65,7 +60,6 @@ export default function FolderDetailPage() {
     files: [],
     loading: true,
     error: null,
-    isAuthenticated: null,
     showUpload: false
   })
 
@@ -107,58 +101,9 @@ export default function FolderDetailPage() {
     }
   }, [folderId])
 
-  // Authentication and data fetching effect
   useEffect(() => {
-    let isMounted = true
-
-    const checkAuthAndFetchData = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        if (!isMounted) return
-        
-        if (!session) {
-          setState(prev => ({ ...prev, isAuthenticated: false }))
-          router.push('/login')
-          return
-        }
-        
-        setState(prev => ({ ...prev, isAuthenticated: true }))
-        await fetchFolderData()
-        
-      } catch (error) {
-        console.error('Auth check failed:', error)
-        if (isMounted) {
-          setState(prev => ({ 
-            ...prev, 
-            isAuthenticated: false,
-            error: 'Authentication failed'
-          }))
-        }
-      }
-    }
-
-    checkAuthAndFetchData()
-    
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return
-        
-        if (event === 'SIGNED_OUT' || !session) {
-          setState(prev => ({ ...prev, isAuthenticated: false }))
-          router.push('/login')
-        } else if (session) {
-          setState(prev => ({ ...prev, isAuthenticated: true }))
-        }
-      }
-    )
-    
-    return () => {
-      isMounted = false
-      subscription.unsubscribe()
-    }
-  }, [router, supabase.auth, folderId, fetchFolderData])
+    fetchFolderData()
+  }, [fetchFolderData])
 
   // Event handlers
   const handleUploadSuccess = useCallback((): void => {
@@ -224,99 +169,68 @@ export default function FolderDetailPage() {
     folderColor: state.folder?.color
   }))
 
-  // Loading state
-  if (state.loading || state.isAuthenticated === null) {
-    return <FolderDetailSkeleton />
-  }
-
-  // Redirect if not authenticated
-  if (state.isAuthenticated === false) {
-    return null
-  }
-
-  // Error state
-  if (state.error && !state.loading) {
+  if (state.loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-          <div className="text-center py-16">
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <FolderOpen className="h-10 w-10 text-red-500" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              {state.error}
-            </h3>
-            <div className="space-x-4">
-              <Button 
-                onClick={() => router.push('/documents')}
-                variant="outline"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Documents
-              </Button>
-              <Button onClick={fetchFolderData}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Try Again
-              </Button>
-            </div>
-          </div>
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-32 bg-gray-200 rounded"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Breadcrumb Navigation */}
-        <div className="mb-6">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink 
-                  href="/documents"
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
-                >
-                  <FolderOpen className="h-4 w-4" />
-                  Documents
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="flex items-center gap-2">
-                  {state.folder && (
-                    <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: state.folder.color }}
-                    />
-                  )}
-                  {state.folder?.name || 'Loading...'}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink 
+                href="/documents"
+                className="flex items-center gap-2"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Documents
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="flex items-center gap-2">
+                {state.folder && (
+                  <div 
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: state.folder.color }}
+                  />
+                )}
+                {state.folder?.name || 'Loading...'}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
         {/* Folder Header */}
         {state.folder && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-4 flex-1">
                 <div 
-                  className="p-4 rounded-xl"
+                  className="p-3 rounded-lg"
                   style={{ backgroundColor: `${state.folder.color}20` }}
                 >
                   <FolderOpen 
-                    className="h-8 w-8"
+                    className="h-6 w-6"
                     style={{ color: state.folder.color }} 
                   />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h1 className="text-xl font-semibold mb-1">
                     {state.folder.name}
                   </h1>
                   {state.folder.description && (
-                    <p className="text-gray-600 mb-3">
+                    <p className="text-gray-600 text-sm mb-2">
                       {state.folder.description}
                     </p>
                   )}
@@ -325,36 +239,22 @@ export default function FolderDetailPage() {
                       <FileText className="h-4 w-4" />
                       <span>{state.folder.file_count} files</span>
                     </div>
-                    <div>
-                      {formatFileSize(state.folder.total_size)}
-                    </div>
-                    <div>
-                      Created {new Date(state.folder.created_at).toLocaleDateString()}
-                    </div>
+                    <span>{formatFileSize(state.folder.total_size)}</span>
                   </div>
                 </div>
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                <Button 
-                  onClick={() => router.push('/documents')}
-                  variant="outline"
-                  className="touch-target"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-                
+              <div className="flex gap-2">
                 <Dialog open={state.showUpload} onOpenChange={(open) => 
                   setState(prev => ({ ...prev, showUpload: open }))
                 }>
                   <DialogTrigger asChild>
-                    <Button className="bg-blue-600 hover:bg-blue-700 touch-target">
+                    <Button size="sm">
                       <Upload className="h-4 w-4 mr-2" />
                       Upload Files
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="w-[95vw] max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Upload Files to {state.folder.name}</DialogTitle>
                     </DialogHeader>
@@ -370,7 +270,7 @@ export default function FolderDetailPage() {
                 <Button 
                   onClick={handleCreateReview}
                   variant="outline"
-                  className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 touch-target"
+                  size="sm"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
                   Create Review
@@ -379,11 +279,10 @@ export default function FolderDetailPage() {
                 <Button 
                   onClick={fetchFolderData} 
                   variant="outline" 
+                  size="sm"
                   disabled={state.loading}
-                  className="touch-target"
                 >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${state.loading ? 'animate-spin' : ''}`} />
-                  Refresh
+                  <RefreshCw className={`h-4 w-4 ${state.loading ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
             </div>
@@ -392,11 +291,9 @@ export default function FolderDetailPage() {
 
         {/* Error Alert */}
         {state.error && (
-          <div className="mb-6">
-            <Alert variant="destructive">
-              <AlertDescription>{state.error}</AlertDescription>
-            </Alert>
-          </div>
+          <Alert variant="destructive">
+            <AlertDescription>{state.error}</AlertDescription>
+          </Alert>
         )}
 
         {/* Files Table */}

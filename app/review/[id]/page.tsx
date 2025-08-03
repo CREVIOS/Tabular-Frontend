@@ -1,13 +1,8 @@
-// ReviewDetailPage.tsx - Fixed TypeScript errors
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { 
-  ArrowLeft, 
-  AlertCircle, 
-  CheckCircle
-} from 'lucide-react'
+import { useParams } from 'next/navigation'
+import { AlertCircle, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import RealTimeReviewTable from '@/components/review-table/RealTimeReviewtable'
 
@@ -29,12 +24,12 @@ interface FileItem {
   }
 }
 
-// Fixed: Make added_at optional to match database schema
+
 interface ReviewFile {
   id: string
   file_id: string
   review_id: string
-  added_at: string | null  // Changed from string to string | null
+  added_at: string | null
   files?: FileItem
 }
 
@@ -71,12 +66,12 @@ const Toast = ({ type, message, onClose }: ToastProps) => {
 
 export default function ReviewDetailPage() {
   const params = useParams()
-  const router = useRouter()
   const supabase = createClient()
   const reviewId = params.id as string
   
-  // State (modal state management moved to DataTable)
   const [toasts, setToasts] = useState<Array<{id: string; type: 'success' | 'error' | 'info'; message: string}>>([])
+  // existingFiles state - used to track files already in the review
+  // This is loaded via fetchExistingFiles and can be used for duplicate checking or display
   const [existingFiles, setExistingFiles] = useState<FileItem[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [reviewData, setReviewData] = useState<any>(null)
@@ -91,11 +86,9 @@ export default function ReviewDetailPage() {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
   
-  // Fetch existing files in the review
   const fetchExistingFiles = useCallback(async () => {
     if (!reviewId) return
     
-    // Loading state removed - handled by DataTable
     try {
       // Fetch review files with file details and folder information
       const { data: reviewFiles, error: reviewFilesError } = await supabase
@@ -124,9 +117,8 @@ export default function ReviewDetailPage() {
         throw reviewFilesError
       }
       
-      // Transform the data to match FileItem interface with proper null handling
       const transformedFiles: FileItem[] = (reviewFiles || [])
-        .filter((rf: ReviewFile) => rf.files) // Only include files that exist
+        .filter((rf: ReviewFile) => rf.files)
         .map((rf: ReviewFile) => ({
           id: rf.files!.id,
           original_filename: rf.files!.original_filename,
@@ -134,7 +126,6 @@ export default function ReviewDetailPage() {
           status: rf.files!.status,
           folder_id: rf.files!.folder_id,
           created_at: rf.files!.created_at,
-          // Fixed: Safely access nested folders property
           ...(rf.files!.folder && {
             folder: {
               name: rf.files!.folder.name
@@ -202,72 +193,28 @@ export default function ReviewDetailPage() {
   // Modal handlers no longer needed - handled by DataTable
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex">
-      <div className="w-full mx-auto px-4 py-12 sm:px-8">
-        {/* Header */}
-        <div className="mb-10">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => router.push('/review')}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors shadow-sm border border-gray-200 bg-white"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-            </div>
-            {/* Export button removed */}
-          </div>
-          
-          {/* Action buttons moved to DataTable toolbar */}
-          
-          {/* Status indicators */}
-          {/* {existingFiles.length > 0 && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2 text-sm text-blue-700">
-                <FileText className="h-4 w-4" />
-                <span>
-                  Currently reviewing {existingFiles.length} document{existingFiles.length !== 1 ? 's' : ''}
-                  {(() => {
-                    const folders = [...new Set(existingFiles
-                      .filter(f => f.folder)
-                      .map(f => f.folder!.name))]
-                    if (folders.length === 1) {
-                      return ` from "${folders[0]}" folder`
-                    } else if (folders.length > 1) {
-                      return ` from ${folders.length} different folders`
-                    }
-                    return ''
-                  })()}
-                </span>
-              </div>
-            </div>
-          )} */}
-        </div>
-        
-        {/* Fixed: Updated props to match RealTimeReviewTable interface */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-10">
-          <RealTimeReviewTable 
-            reviewId={reviewId}
-            onFilesAdded={handleFilesAdded}
-            onColumnAdded={handleColumnAdded}
-            reviewName={reviewData?.name || 'Document Review'}
-            reviewStatus={reviewData?.status || 'draft'}
+    <div className="w-full mx-auto px-4 py-6 sm:px-8">
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <RealTimeReviewTable 
+          reviewId={reviewId}
+          onFilesAdded={handleFilesAdded}
+          onColumnAdded={handleColumnAdded}
+          reviewName={reviewData?.name || 'Document Review'}
+          reviewStatus={reviewData?.status || 'draft'}
+          existingFiles={existingFiles}
+        />
+      </div>
+      
+      {/* Toast notifications */}
+      <div className="fixed top-20 right-6 z-50 space-y-3">
+        {toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            type={toast.type}
+            message={toast.message}
+            onClose={() => removeToast(toast.id)}
           />
-        </div>
-        
-        {/* Modals are now integrated in the DataTable component */}
-        
-        {/* Toast notifications */}
-        <div className="fixed top-6 right-6 z-50 space-y-3">
-          {toasts.map(toast => (
-            <Toast
-              key={toast.id}
-              type={toast.type}
-              message={toast.message}
-              onClose={() => removeToast(toast.id)}
-            />
-          ))}
-        </div>
+        ))}
       </div>
     </div>
   )
