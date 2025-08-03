@@ -84,19 +84,19 @@ export const createFileColumns = ({
   {
     accessorKey: "original_filename",
     header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-auto px-2 py-1 hover:bg-blue-50 text-xs sm:text-sm"
-        >
-          <div className="flex items-center gap-1">
-            <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span>File Name</span>
-            <ArrowUpDown className="h-3 w-3 sm:h-4 sm:w-4" />
-          </div>
-        </Button>
-      )
+              return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="h-auto px-2 py-1 hover:bg-blue-50 text-xs sm:text-sm"
+          >
+            <div className="flex items-center gap-1">
+              <FileText className="h-4 w-4" />
+              <span>File Name</span>
+              <ArrowUpDown className="h-4 w-4" />
+            </div>
+          </Button>
+        )
     },
     cell: ({ row }) => {
       const file = row.original
@@ -231,50 +231,7 @@ export const createFileColumns = ({
       return value.includes(row.getValue(id))
     },
   },
-  {
-    accessorKey: "folderName",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-auto px-2 py-1 hover:bg-blue-50 text-xs sm:text-sm"
-        >
-          <span>Folder</span>
-          <ArrowUpDown className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => {
-      const folderName = row.getValue("folderName") as string
-      const folderColor = row.original.folderColor
-      
-      if (!folderName) {
-        return (
-          <div className="flex items-center justify-center gap-1 text-xs text-gray-400">
-            <div className="w-2 h-2 rounded-full bg-gray-300" />
-            <span className="hidden sm:inline">No Folder</span>
-            <span className="sm:hidden">—</span>
-          </div>
-        )
-      }
-      
-      return (
-        <div className="flex items-center justify-center gap-2">
-          <div 
-            className="w-2 h-2 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: folderColor || '#6b7280' }}
-          />
-          <span className="text-xs sm:text-sm text-gray-700 font-medium truncate max-w-[6rem] sm:max-w-[8rem]" title={folderName}>
-            {folderName}
-          </span>
-        </div>
-      )
-    },
-    filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id))
-    },
-  },
+
   {
     accessorKey: "created_at",
     header: ({ column }) => {
