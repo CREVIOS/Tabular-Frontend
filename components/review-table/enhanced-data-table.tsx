@@ -255,6 +255,7 @@ export function EnhancedDataTable({
   const [tableData, setTableData] = React.useState(data)
   const [columnSizing, setColumnSizing] = React.useState<Record<string, number>>({})
   const [isFullScreen, setIsFullScreen] = React.useState(false)
+  const [draggedRow, setDraggedRow] = React.useState<number | null>(null)
   
   // Modal state management
   const [showAddFilesModal, setShowAddFilesModal] = React.useState(false)
@@ -298,6 +299,47 @@ export function EnhancedDataTable({
     
     setColumnSizing(newSizing)
   }, [reviewColumns, data])
+
+  // Set column order to ensure new columns are always second
+  React.useEffect(() => {
+    if (!reviewColumns || reviewColumns.length === 0) return
+    
+    // Get all possible column IDs
+    const allColumnIds = ['fileName', ...reviewColumns.map(col => col.id), 'actions']
+    
+    // Check if there's a new column (not in current order)
+    const currentOrder = columnOrder.length > 0 ? columnOrder : allColumnIds
+    const newColumns = reviewColumns.filter(col => !currentOrder.includes(col.id))
+    
+    if (newColumns.length > 0) {
+      // Create new order with new columns as second position
+      const newOrder: string[] = []
+      
+      // First add fileName (Document column)
+      if (allColumnIds.includes('fileName')) {
+        newOrder.push('fileName')
+      }
+      
+      // Then add new columns
+      newColumns.forEach(col => {
+        newOrder.push(col.id)
+      })
+      
+      // Then add existing columns (except fileName and actions)
+      currentOrder.forEach(id => {
+        if (id !== 'fileName' && id !== 'actions' && !newColumns.some(col => col.id === id)) {
+          newOrder.push(id)
+        }
+      })
+      
+      // Finally add actions
+      if (allColumnIds.includes('actions')) {
+        newOrder.push('actions')
+      }
+      
+      setColumnOrder(newOrder)
+    }
+  }, [reviewColumns, columnOrder])
 
   // Load saved column preferences from localStorage
   React.useEffect(() => {
@@ -377,6 +419,7 @@ export function EnhancedDataTable({
   // Column drag and drop handlers
   const handleColumnDragStart = React.useCallback((e: React.DragEvent, columnId: string) => {
     e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('dragType', 'column')
     e.dataTransfer.setData('columnId', columnId)
   }, [])
 
@@ -387,6 +430,9 @@ export function EnhancedDataTable({
 
   const handleColumnDrop = React.useCallback((e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault()
+    const dragType = e.dataTransfer.getData('dragType')
+    if (dragType !== 'column') return
+    
     const sourceColumnId = e.dataTransfer.getData('columnId')
     
     if (sourceColumnId === targetColumnId) return
@@ -403,6 +449,43 @@ export function EnhancedDataTable({
     
     setColumnOrder(newOrder)
   }, [table])
+
+  // Row drag and drop handlers
+  const handleRowDragStart = React.useCallback((e: React.DragEvent, rowIndex: number) => {
+    setDraggedRow(rowIndex)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('dragType', 'row')
+    e.dataTransfer.setData('rowIndex', rowIndex.toString())
+  }, [])
+
+  const handleRowDragOver = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }, [])
+
+  const handleRowDrop = React.useCallback((e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+    const dragType = e.dataTransfer.getData('dragType')
+    if (dragType !== 'row') return
+    
+    if (draggedRow === null || draggedRow === dropIndex) return
+    
+    const newData = [...tableData]
+    const draggedItem = newData[draggedRow]
+    
+    // Remove dragged item
+    newData.splice(draggedRow, 1)
+    
+    // Insert at new position
+    newData.splice(dropIndex, 0, draggedItem)
+    
+    setTableData(newData)
+    setDraggedRow(null)
+  }, [draggedRow, tableData])
+
+  const handleRowDragEnd = React.useCallback(() => {
+    setDraggedRow(null)
+  }, [])
 
   // Column resize handler - no maximum limit
   const handleColumnResize = React.useCallback((columnId: string, delta: number) => {
@@ -900,10 +983,10 @@ export function EnhancedDataTable({
                     : '600px' 
               }}
             >
-              <Table className="w-full border-collapse">
-                <TableHeader className="bg-gray-50/80 sticky top-0 z-20">
+              <Table className="w-full border-collapse border border-black">
+                <TableHeader className="bg-gray-50 sticky top-0 z-20 border-b-2 border-black">
                   {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="border-b border-gray-200 hover:bg-transparent">
+                    <TableRow key={headerGroup.id} className="hover:bg-transparent">
                       {headerGroup.headers.map((header) => {
                         const columnId = header.column.id
                         const width = columnSizing[columnId] || header.column.getSize()
@@ -963,13 +1046,19 @@ export function EnhancedDataTable({
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
                         className={cn(
-                          "border-b border-gray-100 hover:bg-gray-50/50 transition-colors",
-                          virtualRow.index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                          "border-b border-black hover:bg-gray-50/50 transition-colors",
+                          virtualRow.index % 2 === 0 ? 'bg-white' : 'bg-gray-50/20',
+                          draggedRow === virtualRow.index && 'opacity-50'
                         )}
                         style={{
                           height: `${virtualRow.size}px`,
                           transform: `translateY(${virtualRow.start - virtualRow.index * virtualRow.size}px)`,
                         }}
+                        draggable={true}
+                        onDragStart={(e) => handleRowDragStart(e, virtualRow.index)}
+                        onDragOver={handleRowDragOver}
+                        onDrop={(e) => handleRowDrop(e, virtualRow.index)}
+                        onDragEnd={handleRowDragEnd}
                       >
                         {row.getVisibleCells().map((cell) => {
                           const columnId = cell.column.id
@@ -985,8 +1074,8 @@ export function EnhancedDataTable({
                                 maxWidth: width,
                               }}
                               className={cn(
-                                "px-3 py-2 align-top text-center border-r border-gray-100 last:border-r-0",
-                                isSticky && "sticky left-0 bg-white z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]"
+                                "px-3 py-2 align-top text-center border-r border-black last:border-r-0",
+                                isSticky && "sticky left-0 bg-white z-10 border-r-2"
                               )}
                             >
                               <div className="w-full overflow-hidden">
