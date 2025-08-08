@@ -5,7 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { FileText, ShieldAlert } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { FileText, ShieldAlert, ChevronDown, ChevronUp, Filter } from "lucide-react"
 
 export type TemplateColumn = {
   column_name: string
@@ -57,7 +59,6 @@ const CONTRACT_TEMPLATES: ReviewTemplate[] = [
       { column_name: "Assignment", data_type: "text", prompt: "Summarize assignment clause including whether assignment requires consent and exceptions (e.g., change of control)." },
     ]
   },
-  // New: Data Processing Addendum (DPA) Compliance
   {
     id: "contract_dpa_compliance",
     title: "DPA Compliance",
@@ -75,7 +76,6 @@ const CONTRACT_TEMPLATES: ReviewTemplate[] = [
       { column_name: "Retention/Deletion", data_type: "text", prompt: "Summarize retention and deletion obligations after processing ends, including any grace periods." },
     ]
   },
-  // New: Employment Agreement Snapshot
   {
     id: "employment_agreement_snapshot",
     title: "Employment Agreement Snapshot",
@@ -94,7 +94,6 @@ const CONTRACT_TEMPLATES: ReviewTemplate[] = [
       { column_name: "IP Assignment", data_type: "boolean", prompt: "Indicate if IP assignment and inventions clauses are included (true/false)." },
     ]
   },
-  // New: Commercial Lease Highlights
   {
     id: "commercial_lease_highlights",
     title: "Commercial Lease Highlights",
@@ -113,7 +112,6 @@ const CONTRACT_TEMPLATES: ReviewTemplate[] = [
       { column_name: "Termination Rights", data_type: "text", prompt: "Summarize early termination rights and conditions if any." },
     ]
   },
-  // New: NDA Essentials
   {
     id: "nda_essentials",
     title: "NDA Essentials",
@@ -141,6 +139,22 @@ interface ReviewTemplatesModalProps {
 }
 
 export default function ReviewTemplatesModal({ open, onOpenChange, onApply }: ReviewTemplatesModalProps) {
+  const [search, setSearch] = React.useState("")
+  const allTags = React.useMemo(() => Array.from(new Set(CONTRACT_TEMPLATES.flatMap(t => t.recommendedFor))), [])
+  const [activeTag, setActiveTag] = React.useState<string | null>(null)
+  const [expanded, setExpanded] = React.useState<Record<string, boolean>>({})
+
+  const filtered = React.useMemo(() => {
+    return CONTRACT_TEMPLATES.filter(t => {
+      const matchesTag = !activeTag || t.recommendedFor.includes(activeTag)
+      const q = search.trim().toLowerCase()
+      const matchesSearch = !q || t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
+      return matchesTag && matchesSearch
+    })
+  }, [activeTag, search])
+
+  const toggleExpanded = (id: string) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden p-0">
@@ -148,46 +162,123 @@ export default function ReviewTemplatesModal({ open, onOpenChange, onApply }: Re
           <DialogTitle className="text-lg">Choose a Review Template</DialogTitle>
           <DialogDescription>Select a contract template to auto-fill columns and details. You can edit everything later.</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="px-6 pb-6 max-h-[70vh]">
+
+        {/* Filters */}
+        <div className="px-6 pb-3 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-500" />
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={activeTag ? "outline" : "default"}
+                className="cursor-pointer"
+                onClick={() => setActiveTag(null)}
+              >
+                All
+              </Badge>
+              {allTags.map(tag => (
+                <Badge
+                  key={tag}
+                  variant={activeTag === tag ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <div className="relative">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search templates..."
+              className="pl-3"
+            />
+          </div>
+        </div>
+
+        <ScrollArea className="px-6 pb-6 max-h-[60vh]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {CONTRACT_TEMPLATES.map((tpl) => (
-              <div key={tpl.id} className="border rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded bg-blue-100 text-blue-700">
-                    {tpl.id === 'contract_risk_obligations' ? <ShieldAlert className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-semibold text-gray-900 text-sm">{tpl.title}</h3>
-                      <Badge variant="outline" className="text-[10px]">{tpl.columns.length} fields</Badge>
+            {filtered.map((tpl) => {
+              const isOpen = !!expanded[tpl.id]
+              return (
+                <div key={tpl.id} className="border rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded bg-blue-100 text-blue-700 shrink-0">
+                      {tpl.id.includes('risk') ? <ShieldAlert className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
                     </div>
-                    <p className="text-xs text-gray-600 mt-1 line-clamp-3">{tpl.description}</p>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {tpl.recommendedFor.map((t, i) => (
-                        <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
-                      ))}
-                    </div>
-                    <div className="mt-3">
-                      <div className="text-[11px] font-medium text-gray-700">Includes</div>
-                      <ul className="mt-1 space-y-1 text-[11px] text-gray-600 list-disc list-inside">
-                        {tpl.columns.slice(0, 4).map((c, i) => (
-                          <li key={i}>{c.column_name}</li>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-semibold text-gray-900 text-sm">{tpl.title}</h3>
+                        <Badge variant="outline" className="text-[10px]">{tpl.columns.length} fields</Badge>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1 line-clamp-3">{tpl.description}</p>
+
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {tpl.recommendedFor.map((t, i) => (
+                          <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
                         ))}
-                        {tpl.columns.length > 4 && (
-                          <li>+ {tpl.columns.length - 4} more…</li>
-                        )}
-                      </ul>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="text-[11px] text-gray-500">Default name: <span className="font-medium text-gray-700">{tpl.defaultName}</span></div>
-                      <Button size="sm" onClick={() => onApply(tpl)}>
-                        Use Template
-                      </Button>
+                      </div>
+
+                      {/* Preview list */}
+                      <div className="mt-3">
+                        <div className="text-[11px] font-medium text-gray-700">Includes</div>
+                        <ul className="mt-1 space-y-1 text-[11px] text-gray-600 list-disc list-inside">
+                          {tpl.columns.slice(0, isOpen ? tpl.columns.length : 4).map((c, i) => (
+                            <li key={i}>{c.column_name}</li>
+                          ))}
+                          {!isOpen && tpl.columns.length > 4 && (
+                            <li>+ {tpl.columns.length - 4} more…</li>
+                          )}
+                        </ul>
+                      </div>
+
+                      {/* Expandable details */}
+                      <Collapsible open={isOpen} onOpenChange={() => toggleExpanded(tpl.id)}>
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="text-[11px] text-gray-500">Default name: <span className="font-medium text-gray-700">{tpl.defaultName}</span></div>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-7 px-2">
+                              {isOpen ? (
+                                <>
+                                  <ChevronUp className="h-3 w-3 mr-1" /> Hide Details
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-3 w-3 mr-1" /> Show Details
+                                </>
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+                        </div>
+                        <CollapsibleContent className="mt-2">
+                          <div className="border rounded-md p-2 bg-gray-50">
+                            <div className="text-[11px] text-gray-600 mb-2">All fields with prompts</div>
+                            <div className="space-y-2 max-h-44 overflow-auto pr-1">
+                              {tpl.columns.map((c, i) => (
+                                <div key={i} className="text-[11px]">
+                                  <div className="font-medium text-gray-900">{c.column_name} <span className="ml-2 text-gray-500">({c.data_type})</span></div>
+                                  <div className="text-gray-700 mt-0.5">{c.prompt}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+
+                      <div className="mt-4 flex items-center justify-between">
+                        <Button variant="outline" size="sm" onClick={() => toggleExpanded(tpl.id)}>
+                          {isOpen ? 'Hide Details' : 'Preview Details'}
+                        </Button>
+                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => onApply(tpl)}>
+                          Use Template
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </ScrollArea>
         <div className="px-6 pb-4 flex justify-end">
