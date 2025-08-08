@@ -115,15 +115,11 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
       return allowedExtensions.includes(extension)
     })
     
-    const newFiles: FileWithStatus[] = validFiles.map(file => {
-      // Enhanced filename sanitization with validation
-      const sanitizedName = sanitizeFileName(file.name, 80) // Shorter for better compatibility
-      
-      // Validate the sanitized name
+    const prepared: FileWithStatus[] = validFiles.map(file => {
+      const sanitizedName = sanitizeFileName(file.name, 80)
       if (sanitizedName === 'sanitized_file.txt' || sanitizedName.startsWith('file_')) {
         console.warn(`File "${file.name}" was heavily sanitized to "${sanitizedName}"`)
       }
-      
       const safeFile = new File([file], sanitizedName, { type: file.type })
       return {
         file: safeFile,
@@ -133,28 +129,42 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
         id: generateFileId()
       }
     })
-    
-    setSelectedFiles(prev => [...prev, ...newFiles])
+
+    // Update local UI state for list rendering and trigger onChange for the upload component
+    setSelectedFiles(prev => [...prev, ...prepared])
     setFiles(prev => [...prev, ...validFiles])
-    
+
     const rejectedCount = acceptedFiles.length - validFiles.length
     if (rejectedCount > 0) {
       setError(`${rejectedCount} file(s) rejected. Only PDF, Microsoft Office, and text files allowed.`)
       setTimeout(() => setError(null), 5000)
     }
+    
+    return { validFiles, prepared }
   }, [])
 
   const onUpload: NonNullable<ShadcnFileUploadProps["onUpload"]> = useCallback(
     async (files, { onProgress, onSuccess, onError }) => {
       try {
-        // First validate and process the files
-        validateAndProcessFiles(files)
-        
+        // Prepare consistent UI entries and IDs for these files
+        const prepared = files.map((file) => {
+          const sanitizedName = sanitizeFileName(file.name, 80)
+          const safeFile = new File([file], sanitizedName, { type: file.type })
+          return {
+            file: safeFile,
+            status: 'pending' as FileStatus,
+            progress: 0,
+            retries: 0,
+            id: generateFileId()
+          }
+        })
+        setSelectedFiles(prev => [...prev, ...prepared])
+
         // Process each file individually
-        const uploadPromises = files.map(async (file) => {
+        let successCount = 0
+        const uploadPromises = files.map(async (file, idx) => {
           try {
-            const fileWithStatus = selectedFiles.find(f => f.file.name === file.name)
-            const fileId = fileWithStatus?.id || generateFileId()
+            const fileId = prepared[idx].id
             
             // Create upload progress callback for this specific file
             const progressCallback = (fileId: string, progress: UploadProgress) => {
@@ -163,8 +173,8 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
             }
             
             const uploadItems = [{
-              file,
-              id: fileId,
+              file, // send the original file to backend
+              id: fileId, // keep progress tied to our prepared entry
               ...(folderId && { folderId })
             }]
 
@@ -181,6 +191,7 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
 
             if (result.success) {
               onSuccess(file)
+              successCount += 1
             } else {
               const errorMsg = 'error' in result ? result.error : 'Upload failed'
               onError(file, new Error(formatFileProcessingError(errorMsg)))
@@ -196,12 +207,7 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
         // Wait for all uploads to complete
         await Promise.all(uploadPromises)
         
-        // Check if all uploads were successful
-        const allSuccessful = files.every(file => 
-          selectedFiles.find(f => f.file.name === file.name)?.status === 'completed'
-        )
-        
-        if (allSuccessful) {
+        if (successCount === files.length) {
           setUploadComplete(true)
           setSuccessMessage(`Successfully uploaded ${files.length} file${files.length !== 1 ? 's' : ''}!`)
           setTimeout(() => {
@@ -216,7 +222,7 @@ export function FileUpload({ onUploadSuccess, folderId }: FileUploadProps) {
         console.error("Unexpected error during upload:", error)
       }
     },
-    [selectedFiles, folderId, onUploadSuccess, validateAndProcessFiles]
+    [folderId, onUploadSuccess]
   )
 
   const onFileReject = useCallback((file: File, message: string) => {

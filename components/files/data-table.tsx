@@ -55,6 +55,15 @@ export function FilesDataTable({
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
   const [globalFilter, setGlobalFilter] = React.useState("")
+  const [searchInput, setSearchInput] = React.useState("")
+
+  // Debounce search typing to reduce re-renders and heavy filtering
+  React.useEffect(() => {
+    const id = setTimeout(() => {
+      setGlobalFilter(searchInput)
+    }, 250)
+    return () => clearTimeout(id)
+  }, [searchInput])
 
   const table = useReactTable({
     data,
@@ -86,6 +95,34 @@ export function FilesDataTable({
   const selectedCount = table.getFilteredSelectedRowModel().rows.length
   const totalCount = table.getFilteredRowModel().rows.length
 
+  const activeStatusFilters = (table.getColumn("status")?.getFilterValue() as string[]) || []
+
+  const resetFilters = React.useCallback(() => {
+    setGlobalFilter("")
+    setSearchInput("")
+    setSorting([])
+    table.getColumn("status")?.setFilterValue(undefined)
+  }, [table])
+
+  const statusCounts = React.useMemo(() => {
+    const counts: Record<string, number> = { completed: 0, processing: 0, queued: 0, failed: 0 }
+    for (const row of data as unknown as Array<{ status?: string }>) {
+      const s = (row.status || '').toLowerCase()
+      if (counts[s] !== undefined) counts[s] += 1
+    }
+    return counts
+  }, [data])
+
+  const toggleStatus = (status: string) => {
+    const column = table.getColumn('status')
+    const current = (column?.getFilterValue() as string[]) || []
+    if (current.includes(status)) {
+      column?.setFilterValue(current.filter(v => v !== status))
+    } else {
+      column?.setFilterValue([...current, status])
+    }
+  }
+
   return (
     <div className="w-full space-y-4">
       {/* Header */}
@@ -106,10 +143,19 @@ export function FilesDataTable({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               placeholder="Search files..."
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="pl-10"
             />
+            {searchInput && (
+              <button
+                onClick={() => setSearchInput("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -149,14 +195,66 @@ export function FilesDataTable({
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Clear filters */}
+            {(activeStatusFilters.length > 0 || globalFilter) && (
+              <Button variant="outline" size="sm" onClick={resetFilters}>
+                Reset
+              </Button>
+            )}
+
           </div>
         </div>
 
+        {/* Active filters chips */}
+        {(activeStatusFilters.length > 0 || globalFilter) && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            {globalFilter && (
+              <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                Search: "{globalFilter}"
+              </span>
+            )}
+            {activeStatusFilters.map((s) => (
+              <button
+                key={s}
+                className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 transition"
+                onClick={() => {
+                  const column = table.getColumn('status')
+                  const current = (column?.getFilterValue() as string[]) || []
+                  column?.setFilterValue(current.filter(v => v !== s))
+                }}
+                title="Remove filter"
+              >
+                Status: {s} ✕
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Quick status filter pills */}
+        <div className="flex flex-wrap items-center gap-2">
+          {(['completed','processing','queued','failed'] as const).map((s) => {
+            const active = activeStatusFilters.includes(s)
+            const count = statusCounts[s] || 0
+            return (
+              <button
+                key={s}
+                onClick={() => toggleStatus(s)}
+                className={`px-3 py-1.5 rounded-full border text-xs font-medium transition ${active ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                title={`Toggle ${s}`}
+              >
+                <span className="capitalize">{s}</span>
+                <span className={`ml-2 inline-flex items-center justify-center rounded-full px-1.5 ${active ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{count}</span>
+              </button>
+            )
+          })}
+        </div>
+
         {/* Table */}
+        <div className="rounded-xl border bg-white shadow-sm overflow-auto max-h-[65vh]">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-50 hover:to-gray-100 border-b-2 border-gray-200">
+              <TableRow key={headerGroup.id} className="bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-50 hover:to-gray-100 border-b-2 border-gray-200 sticky top-0 z-10">
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id} className="font-semibold text-gray-700 text-center py-4">
                     <div className="flex items-center justify-center">
@@ -195,7 +293,7 @@ export function FilesDataTable({
                     }`}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-4 text-center">
+                      <TableCell key={cell.id} className={`py-4 text-center`}>
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
@@ -235,6 +333,7 @@ export function FilesDataTable({
               )}
             </TableBody>
           </Table>
+        </div>
 
         {/* Pagination */}
         {table.getRowModel().rows?.length > 0 && (
