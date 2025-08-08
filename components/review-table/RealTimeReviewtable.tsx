@@ -7,8 +7,8 @@ import {
   AlertCircle, 
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { DataTable } from './data-table' 
-import { createColumns, ReviewTableRow } from './columns' 
+import { EnhancedDataTable } from './enhanced-data-table' 
+import { createEnhancedColumns, ReviewTableRow } from './enhanced-columns' 
 import { DocumentViewer } from '../DocumentViewer'
 import {
   ReviewColumn as GlobalReviewColumn,
@@ -598,7 +598,7 @@ export default function RealTimeReviewTable({
   const tableColumns = useMemo(() => {
     if (!columns.length) return []
     
-    return createColumns({
+    return createEnhancedColumns({
       columns: columns as unknown as GlobalReviewColumn[],
       realTimeUpdates: getRealTimeUpdates() as GlobalRealTimeUpdates,
       processingCells: getProcessingCells(),
@@ -678,8 +678,8 @@ export default function RealTimeReviewTable({
         </div>
       )}
       
-      {/* DataTable Integration */}
-      <DataTable
+      {/* Enhanced DataTable Integration */}
+      <EnhancedDataTable
         columns={tableColumns}
         data={tableData}
         reviewName={reviewName}

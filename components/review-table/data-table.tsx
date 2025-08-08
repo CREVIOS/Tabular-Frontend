@@ -372,7 +372,7 @@ export function DataTable({
       ws['!autofilter'] = { ref: XLSX.utils.encode_range({ r: 0, c: 0 }, { r: 0, c: range.e.c }) }
       
       // Freeze top 2 rows (header+prompt) and first column
-      ;(ws as any)['!freeze'] = { xSplit: 1, ySplit: 2 }
+      ;(ws as unknown as { '!freeze': { xSplit: number; ySplit: number } })['!freeze'] = { xSplit: 1, ySplit: 2 }
       
       // Set workbook properties
       wb.Props = {
