@@ -40,9 +40,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 function CenteredHeader({
   title,
   column,
+  prompt,
 }: {
   title: React.ReactNode
   column: Column<ReviewTableRow>
+  prompt?: string
 }) { 
   const handleSort = useCallback(() => {
     column.toggleSorting(column.getIsSorted() === "asc")
@@ -55,9 +57,16 @@ function CenteredHeader({
       className="w-full h-full p-2 hover:bg-gray-50"
       onClick={handleSort}
     >
-      <div className="flex items-center justify-center gap-1">
-        {title}
-        <ArrowUpDown className="h-3 w-3 opacity-50" />
+      <div className="flex flex-col items-center justify-center gap-1">
+        <div className="flex items-center gap-1">
+          {title}
+          <ArrowUpDown className="h-3 w-3 opacity-50" />
+        </div>
+        {prompt && (
+          <div className="text-[10px] leading-snug text-gray-500 whitespace-pre-wrap break-words text-center w-full">
+            {prompt}
+          </div>
+        )}
       </div>
     </Button>
   )
@@ -164,16 +173,16 @@ export function createEnhancedColumns({
             
             {/* File name */}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 whitespace-pre-wrap break-words text-center">
+              <p className="text-sm font-medium text-gray-900 whitespace-pre-wrap break-words text-center line-clamp-2">
                 {fileName}
               </p>
             </div>
           </div>
         )
       },
-      size: 250,
-      minSize: 150,
-      maxSize: 800,
+      size: 320,
+      minSize: 200,
+      maxSize: 1000,
       meta: { 
         className: "sticky-column",
         isSticky: true 
@@ -227,6 +236,7 @@ export function createEnhancedColumns({
         <CenteredHeader
           title={<span className="font-medium text-sm">{col.column_name}</span>}
           column={column}
+          prompt={col.prompt}
         />
       ),
       meta: { 
