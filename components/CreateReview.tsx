@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import ReviewTemplatesModal, { ReviewTemplate } from '@/components/review-templates/ReviewTemplatesModal'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
@@ -80,6 +81,7 @@ export default function EnhancedCreateReview({
   const [fileSearchQuery, setFileSearchQuery] = useState('')
   const [showFileSelector, setShowFileSelector] = useState(false)
   const [showNoContentModal, setShowNoContentModal] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
 
   useEffect(() => {
     fetchFolders()
@@ -132,6 +134,22 @@ export default function EnhancedCreateReview({
 
   const updateReviewData = (updates: Partial<CreateReviewData>) => {
     setReviewData(prev => ({ ...prev, ...updates }))
+  }
+
+  const applyTemplate = (tpl: ReviewTemplate) => {
+    // Apply template: name/description and columns (mapped with order)
+    const mappedColumns = tpl.columns.map((c, i) => ({
+      column_name: c.column_name,
+      prompt: c.prompt,
+      data_type: c.data_type,
+      column_order: i
+    }))
+    updateReviewData({
+      name: reviewData.name?.trim() ? reviewData.name : tpl.defaultName,
+      description: reviewData.description || tpl.defaultDescription || '',
+      columns: mappedColumns
+    })
+    setShowTemplates(false)
   }
 
   const addColumn = () => {
@@ -420,6 +438,7 @@ export default function EnhancedCreateReview({
   }
 
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
@@ -513,6 +532,12 @@ export default function EnhancedCreateReview({
                 <div className="text-center mb-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Review Configuration</h3>
                   <p className="text-gray-600">Configure your review name and scope</p>
+                  <div className="mt-3">
+                    <Button variant="outline" onClick={() => setShowTemplates(true)} className="gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      Use Template
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-6 max-w-2xl mx-auto">
@@ -1079,5 +1104,11 @@ export default function EnhancedCreateReview({
         </Card>
       </div>
     </div>
+    <ReviewTemplatesModal
+      open={showTemplates}
+      onOpenChange={setShowTemplates}
+      onApply={applyTemplate}
+    />
+    </>
   )
 }
