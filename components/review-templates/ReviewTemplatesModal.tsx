@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { FileText, ShieldAlert, Scale } from "lucide-react"
+import { FileText, ShieldAlert } from "lucide-react"
 
 export type TemplateColumn = {
   column_name: string
