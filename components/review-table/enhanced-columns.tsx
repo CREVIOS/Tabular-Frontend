@@ -173,15 +173,15 @@ export function createEnhancedColumns({
             
             {/* File name */}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 whitespace-pre-wrap break-words text-center line-clamp-2">
+              <p className="text-xs font-medium text-gray-900 whitespace-pre-wrap break-words text-center line-clamp-3">
                 {fileName}
               </p>
             </div>
           </div>
         )
       },
-      size: 320,
-      minSize: 200,
+      size: 380,
+      minSize: 240,
       maxSize: 1000,
       meta: { 
         className: "sticky-column",

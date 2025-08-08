@@ -221,8 +221,8 @@ export default function AddColumnModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Analysis Column</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg">Add Analysis Column</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
             Create a new column to extract specific data from your documents.
           </DialogDescription>
         </DialogHeader>
@@ -245,10 +245,10 @@ export default function AddColumnModal({
         )}
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             {/* Example Templates */}
             <Collapsible open={showExamples} onOpenChange={setShowExamples}>
-              <div className="border rounded-lg p-3">
+              <div className="border rounded-lg p-3 bg-gray-50/50">
                 <CollapsibleTrigger asChild>
                   <Button variant="ghost" className="p-0 h-auto justify-start">
                     <div className="flex items-center gap-2 text-sm">
@@ -259,11 +259,11 @@ export default function AddColumnModal({
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {EXAMPLE_PROMPTS.map((example, index) => (
+                    {EXAMPLE_PROMPTS.map((example, index) => (
                       <div 
-                      key={index}
-                        className="cursor-pointer hover:bg-gray-50 p-2 rounded border text-xs"
-                      onClick={() => handleExampleSelect(example)}
+                        key={index}
+                        className="cursor-pointer hover:bg-white p-2 rounded border text-xs bg-white"
+                        onClick={() => handleExampleSelect(example)}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -275,10 +275,10 @@ export default function AddColumnModal({
                           </Badge>
                         </div>
                       </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
                 </CollapsibleContent>
-            </div>
+              </div>
             </Collapsible>
             
             {/* Column Name and Data Type - Side by Side */}
@@ -319,7 +319,7 @@ export default function AddColumnModal({
                       <SelectContent>
                         {DATA_TYPE_OPTIONS.map(option => (
                           <SelectItem key={option.value} value={option.value}>
-            <div>
+                            <div>
                               <div className="font-medium">{option.label}</div>
                               <div className="text-xs text-muted-foreground">{option.description}</div>
                             </div>
@@ -343,47 +343,48 @@ export default function AddColumnModal({
                   <FormControl>
                     <Textarea
                       placeholder="Describe exactly what information you want to extract from each document. Be specific and clear about what to look for..."
-                      className="min-h-[100px] focus:ring-2 focus:ring-blue-500 resize-none"
+                      className="min-h-[120px] focus:ring-2 focus:ring-blue-500 resize-none"
                       {...field}
-              />
+                    />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    {field.value?.length || 0}/2000 characters
+                    {field.value?.length || 0}/4000 characters
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
+            <DialogFooter className="gap-2 sm:gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="sm:min-w-[100px]"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={form.handleSubmit(onSubmit)}
+                disabled={isSubmitting}
+                className="min-w-[120px]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Column
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
           </form>
         </Form>
-        
-        <DialogFooter className="gap-2">
-          <Button
-              type="button"
-            variant="outline"
-              onClick={onClose}
-            disabled={isSubmitting}
-            >
-              Cancel
-          </Button>
-          <Button
-            onClick={form.handleSubmit(onSubmit)}
-            disabled={isSubmitting}
-            className="min-w-[120px]"
-            >
-            {isSubmitting ? (
-                <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                <Plus className="h-4 w-4 mr-2" />
-                  Add Column
-                </>
-              )}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
