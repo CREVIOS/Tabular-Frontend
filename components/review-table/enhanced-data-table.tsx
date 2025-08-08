@@ -983,8 +983,8 @@ export function EnhancedDataTable({
                     : '600px' 
               }}
             >
-              <Table className="w-full border-collapse border border-black">
-                <TableHeader className="bg-gray-50 sticky top-0 z-20 border-b-2 border-black">
+              <Table className="w-full border-collapse">
+                <TableHeader className="bg-gray-50 sticky top-0 z-20 border-b border-gray-200">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id} className="hover:bg-transparent">
                       {headerGroup.headers.map((header) => {
@@ -1002,8 +1002,8 @@ export function EnhancedDataTable({
                             }}
                             className={cn(
                               "relative h-auto px-4 py-3 text-center font-semibold text-gray-900",
-                              "border-r border-gray-200 last:border-r-0 bg-gray-50/80 backdrop-blur-sm",
-                              isSticky && "sticky left-0 z-30 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]",
+                              "border-r border-gray-200 last:border-r-0 bg-gray-50",
+                              isSticky && "sticky left-0 z-30",
                               "group"
                             )}
                             draggable={!isSticky}
@@ -1046,7 +1046,7 @@ export function EnhancedDataTable({
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
                         className={cn(
-                          "border-b border-black hover:bg-gray-50/50 transition-colors",
+                          "border-b border-gray-200 hover:bg-gray-50/50 transition-colors",
                           virtualRow.index % 2 === 0 ? 'bg-white' : 'bg-gray-50/20',
                           draggedRow === virtualRow.index && 'opacity-50'
                         )}
@@ -1074,8 +1074,8 @@ export function EnhancedDataTable({
                                 maxWidth: width,
                               }}
                               className={cn(
-                                "px-3 py-2 align-top text-center border-r border-black last:border-r-0",
-                                isSticky && "sticky left-0 bg-white z-10 border-r-2"
+                                "px-3 py-2 align-top text-center border-r border-gray-200 last:border-r-0",
+                                isSticky && "sticky left-0 bg-white z-10"
                               )}
                             >
                               <div className="w-full overflow-hidden">
