@@ -137,10 +137,10 @@ function calculateOptimalWidth(
   columnName: string,
   prompt: string,
   sampleData: string[],
-  minWidth: number = 150,
-  maxWidth: number = 400
+  minWidth: number = 200,
+  maxWidth: number = 800
 ): number {
-  const padding = 40 // Extra padding for cell padding and borders
+  const padding = 60 // Extra padding for cell padding and borders
   
   // Measure header width
   const headerWidth = Math.max(
@@ -148,21 +148,21 @@ function calculateOptimalWidth(
     measureTextWidth(prompt, '11px sans-serif')
   ) + padding
   
-  // Measure sample data widths (take top 10 samples)
-  const dataWidths = sampleData.slice(0, 10).map(text => 
-    measureTextWidth(text || '', '12px sans-serif') + padding
-  )
+  // Measure sample data widths (take all samples to get better estimate)
+  const dataWidths = sampleData.map(text => {
+    // Estimate width based on character count (rough approximation for wrapped text)
+    const charCount = (text || '').length
+    const estimatedWidth = Math.min(charCount * 7, 600) // Approx 7px per char, cap at 600
+    return estimatedWidth + padding
+  })
   
-  // Calculate optimal width
-  const avgDataWidth = dataWidths.length > 0 
-    ? dataWidths.reduce((a, b) => a + b, 0) / dataWidths.length
-    : 0
+  // Calculate maximum data width
   const maxDataWidth = Math.max(...dataWidths, 0)
   
-  // Use a weighted average favoring the header and max data width
+  // Use max data width to ensure content fits
   const optimalWidth = Math.max(
     headerWidth,
-    avgDataWidth * 0.3 + maxDataWidth * 0.7
+    maxDataWidth
   )
   
   return Math.min(Math.max(optimalWidth, minWidth), maxWidth)
@@ -278,7 +278,7 @@ export function EnhancedDataTable({
     if (!reviewColumns || reviewColumns.length === 0) return
     
     const newSizing: Record<string, number> = {
-      fileName: 320,
+      fileName: 250,
       actions: 100,
     }
     
@@ -291,8 +291,8 @@ export function EnhancedDataTable({
         col.column_name,
         col.prompt,
         sampleData,
-        180,
-        350
+        250,
+        800
       )
     })
     
@@ -404,11 +404,11 @@ export function EnhancedDataTable({
     setColumnOrder(newOrder)
   }, [table])
 
-  // Column resize handler
+  // Column resize handler - no maximum limit
   const handleColumnResize = React.useCallback((columnId: string, delta: number) => {
     setColumnSizing(prev => {
-      const currentWidth = prev[columnId] || 200
-      const newWidth = Math.max(100, Math.min(500, currentWidth + delta))
+      const currentWidth = prev[columnId] || 300
+      const newWidth = Math.max(100, currentWidth + delta) // No maximum limit
       return { ...prev, [columnId]: newWidth }
     })
   }, [])
@@ -479,21 +479,20 @@ export function EnhancedDataTable({
   // Auto-fit columns to content
   const autoFitColumns = React.useCallback(() => {
     const newSizing: Record<string, number> = {
-      fileName: 320,
+      fileName: 250,
       actions: 100,
     }
     
     reviewColumns?.forEach(col => {
       const sampleData = table.getFilteredRowModel().rows
-        .slice(0, 20)
         .map(row => row.original.results[col.id]?.extracted_value || '')
       
       newSizing[col.id] = calculateOptimalWidth(
         col.column_name,
         col.prompt,
         sampleData,
-        150,
-        400
+        250,
+        800
       )
     })
     
