@@ -14,6 +14,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  ColumnOrderState,
 } from "@tanstack/react-table"
 import { 
   ChevronDown, 
