@@ -1,7 +1,24 @@
 "use client"
 
 import * as React from "react"
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
+
+// Excel sanitization and utility functions
+function sanitizeForExcel(v: unknown): string {
+  const s = String(v ?? '')
+  // Prevent formula injection by prefixing with apostrophe
+  return /^[=+\-@]/.test(s) ? "'" + s : s
+}
+
+function isUrl(s: string): boolean {
+  try { 
+    const u = new URL(s)
+    return u.protocol === 'http:' || u.protocol === 'https:' 
+  } catch { 
+    return false 
+  }
+}
+
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -312,35 +329,35 @@ export function DataTable({
         }
       })
       
-      // Add headers and prompts to export data
-      exportData.push(headers)
-      exportData.push(prompts)
+      // Add sanitized headers and prompts to export data
+      exportData.push(headers.map(sanitizeForExcel))
+      exportData.push(prompts.map(sanitizeForExcel))
       
-      // Build rows based on configuration
+      // Build rows based on configuration with sanitization
       filteredData.forEach(row => {
-        const exportRow: (string | number | null)[] = [row.fileName]
+        const exportRow: (string | number | null)[] = [sanitizeForExcel(row.fileName)]
         
         selectedReviewColumns.forEach(column => {
           const result = row.results[column.id]
           
           if (exportConfig.answerType === 'both') {
             // Short answer
-            exportRow.push(result?.extracted_value || '')
+            exportRow.push(sanitizeForExcel(result?.extracted_value || ''))
             // Long answer  
-            exportRow.push(result?.long || '')
+            exportRow.push(sanitizeForExcel(result?.long || ''))
             
             if (exportConfig.includeSource) {
-              exportRow.push(result?.source_reference || '')
+              exportRow.push(sanitizeForExcel(result?.source_reference || ''))
             }
           } else {
             // Single answer type
             const value = exportConfig.answerType === 'long' 
               ? (result?.long || '') 
               : (result?.extracted_value || '')
-            exportRow.push(value)
+            exportRow.push(sanitizeForExcel(value))
             
             if (exportConfig.includeSource) {
-              exportRow.push(result?.source_reference || '')
+              exportRow.push(sanitizeForExcel(result?.source_reference || ''))
             }
           }
         })
@@ -349,40 +366,50 @@ export function DataTable({
       })
       
       const ws = XLSX.utils.aoa_to_sheet(exportData)
-      
-      // Enhanced formatting for Excel export
       const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
       
-      // Set column widths with better sizing
+      // Add auto-filter on header row
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ r: 0, c: 0 }, { r: 0, c: range.e.c }) }
+      
+      // Freeze top 2 rows (header+prompt) and first column
+      ;(ws as any)['!freeze'] = { xSplit: 1, ySplit: 2 }
+      
+      // Set workbook properties
+      wb.Props = {
+        Title: reviewName,
+        Subject: 'Review Export',
+        Author: 'Tabular',
+        CreatedDate: new Date(),
+      }
+      
+      // Better auto column widths (cap but consider content)
       const colWidths = headers.map((header: string, index: number) => {
         if (index === 0) return { wch: 35 } // Document column
         
-        let maxWidth = Math.max(header.length, prompts[index]?.length || 0)
-        exportData.slice(2).forEach(row => { 
-          if (row[index] && typeof row[index] === 'string') {
-            const cellLength = row[index].toString().length
-            maxWidth = Math.max(maxWidth, Math.min(cellLength, 60)) // Cap at 60 chars
-          }
-        })
-        
-        return { wch: Math.min(Math.max(maxWidth + 3, 20), 60) } 
+        let maxLen = Math.max(header.length, (prompts[index]?.length || 0))
+        for (let R = 2; R < exportData.length; R++) {
+          const cell = exportData[R][index]
+          const len = String(cell ?? '').length
+          maxLen = Math.max(maxLen, Math.min(len, 120))
+        }
+        return { wch: Math.min(Math.max(maxLen + 2, 18), 80) }
       })
       ws['!cols'] = colWidths
       
       // Apply formatting to headers and cells
       for (let C = range.s.c; C <= range.e.c; ++C) {
-        // Format header row (row 0)
+        // Format header row (row 0) with bold and stronger fill
         const headerAddress = XLSX.utils.encode_cell({ r: 0, c: C })
         if (!ws[headerAddress]) continue
         ws[headerAddress].s = {
-          font: { bold: true, color: { rgb: "333333" } },
-          fill: { fgColor: { rgb: "ADD8E6" } },
-          alignment: { horizontal: "center", vertical: "center", wrapText: true },
+          font: { bold: true, color: { rgb: '1F2937' } },
+          fill: { fgColor: { rgb: 'E5F0FF' } },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
           border: {
-            top: { style: "thin", color: { rgb: "000000" } },
-            bottom: { style: "thin", color: { rgb: "000000" } },
-            left: { style: "thin", color: { rgb: "000000" } },
-            right: { style: "thin", color: { rgb: "000000" } }
+            top: { style: 'thin' },
+            bottom: { style: 'thin' },
+            left: { style: 'thin' },
+            right: { style: 'thin' }
           }
         }
         
@@ -432,6 +459,27 @@ export function DataTable({
       if (!ws['!rows']) ws['!rows'] = []
       ws['!rows'][0] = { hpt: 25 } // Header row height
       ws['!rows'][1] = { hpt: 40 } // Prompt row height (taller for wrapping)
+      
+      // Convert source URLs to clickable hyperlinks
+      const sourceColIndexes = headers
+        .map((h, i) => ({ h, i }))
+        .filter(({ h }) => h.endsWith('(Source)'))
+        .map(({ i }) => i)
+      
+      // Rows start at 2 (0 header, 1 prompts)
+      for (let R = 2; R <= range.e.r; ++R) {
+        sourceColIndexes.forEach((C) => {
+          const addr = XLSX.utils.encode_cell({ r: R, c: C })
+          const cell = ws[addr]
+          if (!cell || typeof cell.v !== 'string') return
+          const v = cell.v.trim()
+          if (isUrl(v)) {
+            cell.l = { Target: v, Tooltip: 'Open source' }
+            // Keep original text or set a friendlier label
+            // cell.v = 'Source' // Uncomment to use a shorter label
+          }
+        })
+      }
       
       XLSX.utils.book_append_sheet(wb, ws, 'Review Data')
       
