@@ -182,8 +182,8 @@ export default function FolderDetailPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         {/* Breadcrumb Navigation */}
         <Breadcrumb>
           <BreadcrumbList>
