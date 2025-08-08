@@ -970,8 +970,8 @@ export function EnhancedDataTable({
           </div>
         </div>
 
-        <Card className="border-gray-200 shadow-sm">
-          <CardContent className="p-0">
+        <Card className="border-0 shadow-none rounded-none overflow-hidden">
+          <CardContent className="p-0 rounded-none">
             <div 
               ref={tableContainerRef}
               className="w-full overflow-auto"
