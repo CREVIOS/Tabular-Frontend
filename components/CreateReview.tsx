@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { 
   Plus, 
   X, 
@@ -87,6 +87,7 @@ export default function EnhancedCreateReview({
     () => dynamic(() => import('@/components/review-templates/ReviewTemplatesModal'), { ssr: false }),
     []
   )
+  const columnsBottomRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     fetchFolders()
@@ -160,6 +161,10 @@ export default function EnhancedCreateReview({
   const addColumn = () => {
     const newColumns = [...reviewData.columns, { column_name: '', prompt: '', data_type: 'text' as const }]
     updateReviewData({ columns: newColumns })
+    // Bring view to the newly added column details
+    setTimeout(() => {
+      columnsBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
   }
 
   const removeColumn = (index: number) => {
@@ -853,14 +858,6 @@ export default function EnhancedCreateReview({
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <h4 className="text-lg font-semibold text-gray-900">Extraction Columns</h4>
-                    <Button 
-                      variant="outline" 
-                      onClick={addColumn}
-                      className="bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Column
-                    </Button>
                   </div>
                   
                   <div className="space-y-4">
@@ -943,6 +940,17 @@ export default function EnhancedCreateReview({
                         </div>
                       </div>
                     ))}
+                    {/* Add Column button placed after the last column details */}
+                    <div ref={columnsBottomRef} className="pt-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={addColumn}
+                        className="bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Column
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Tips */}
