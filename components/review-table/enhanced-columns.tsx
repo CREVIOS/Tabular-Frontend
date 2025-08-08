@@ -115,7 +115,7 @@ function DataCell({
   isUpdated,
   onClick,
 }: {
-  result: ReviewResult | null
+  result: (ReviewResult & { error?: boolean }) | null
   isProcessing: boolean
   isUpdated: boolean
   onClick: () => void
@@ -400,7 +400,7 @@ export function createEnhancedColumns({
         const live = realTimeUpdates[key]
         const spinning = processingCells.has(key)
         const res = live || stored
-        const updated = live && live.timestamp && Date.now() - live.timestamp < 1500
+        const updated = Boolean(live && live.timestamp && Date.now() - live.timestamp < 1500)
 
         const handleCellClick = () => {
           if (res) {
@@ -411,7 +411,7 @@ export function createEnhancedColumns({
         return (
           <TooltipProvider>
             <DataCell
-              result={res as ReviewResult | null}
+              result={res as (ReviewResult & { error?: boolean }) | null}
               isProcessing={spinning}
               isUpdated={updated}
               onClick={handleCellClick}
