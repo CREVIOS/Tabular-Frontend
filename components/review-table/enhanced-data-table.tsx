@@ -986,7 +986,7 @@ export function EnhancedDataTable({
               <Table className="w-full border-collapse">
                 <TableHeader className="bg-gray-50 sticky top-0 z-20 border-b border-gray-200">
                   {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                    <TableRow key={headerGroup.id} className="bg-gray-50">
                       {headerGroup.headers.map((header) => {
                         const columnId = header.column.id
                         const width = columnSizing[columnId] || header.column.getSize()
@@ -1046,8 +1046,7 @@ export function EnhancedDataTable({
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
                         className={cn(
-                          "border-b border-gray-200 hover:bg-gray-50/50 transition-colors",
-                          virtualRow.index % 2 === 0 ? 'bg-white' : 'bg-gray-50/20',
+                          "border-b border-gray-200 bg-white",
                           draggedRow === virtualRow.index && 'opacity-50'
                         )}
                         style={{
