@@ -21,7 +21,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import ReviewTemplatesModal, { ReviewTemplate } from '@/components/review-templates/ReviewTemplatesModal'
+import dynamic from 'next/dynamic'
+import type { ReviewTemplate } from '@/components/review-templates/ReviewTemplatesModal'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
@@ -82,6 +83,10 @@ export default function EnhancedCreateReview({
   const [showFileSelector, setShowFileSelector] = useState(false)
   const [showNoContentModal, setShowNoContentModal] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
+  const ReviewTemplatesModal = React.useMemo(
+    () => dynamic(() => import('@/components/review-templates/ReviewTemplatesModal'), { ssr: false }),
+    []
+  )
 
   useEffect(() => {
     fetchFolders()

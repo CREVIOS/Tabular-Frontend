@@ -7,9 +7,10 @@ import {
   AlertCircle, 
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { EnhancedDataTable } from './enhanced-data-table' 
+import dynamic from 'next/dynamic'
 import { createEnhancedColumns, ReviewTableRow } from './enhanced-columns' 
-import { DocumentViewer } from '../DocumentViewer'
+const EnhancedDataTable = dynamic(() => import('./enhanced-data-table').then(m => m.EnhancedDataTable), { ssr: false })
+const DocumentViewer = dynamic(() => import('../DocumentViewer').then(m => m.DocumentViewer), { ssr: false })
 import {
   ReviewColumn as GlobalReviewColumn,
   ReviewResult as GlobalReviewResult,
