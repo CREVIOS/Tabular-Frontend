@@ -85,7 +85,7 @@ function DataCell({
 }) {
   if (isProcessing) {
     return (
-      <div className="flex items-center justify-center min-h-[50px] p-2 border-r border-black">
+      <div className="flex items-center justify-center min-h-[50px] p-2">
         <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
       </div>
     )
@@ -93,7 +93,7 @@ function DataCell({
 
   if (result?.error) {
     return (
-      <div className="flex items-center justify-center min-h-[50px] p-2 border-r border-black text-red-600">
+      <div className="flex items-center justify-center min-h-[50px] p-2 text-red-600">
         <span className="text-sm">Failed</span>
       </div>
     )
@@ -101,7 +101,7 @@ function DataCell({
 
   if (!result?.extracted_value) {
     return (
-      <div className="flex items-center justify-center min-h-[50px] p-2 border-r border-black">
+      <div className="flex items-center justify-center min-h-[50px] p-2">
         {!result ? (
           <Skeleton className="h-4 w-3/4" />
         ) : (
@@ -115,7 +115,7 @@ function DataCell({
 
   return (
     <div
-      className="w-full p-2 min-h-[50px] border-r border-black flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
+      className="w-full p-2 min-h-[50px] flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
       onClick={onClick}
     >
       <div className="text-sm text-gray-900 text-center whitespace-pre-wrap break-words w-full">
@@ -148,9 +148,9 @@ export function createEnhancedColumns({
         const rowIndex = row.index + 1
         
         return (
-          <div className="w-full p-2 min-h-[50px] border-r border-black flex items-center gap-2">
+          <div className="w-full p-2 min-h-[50px] flex items-center gap-2 bg-blue-50 rounded">
             {/* Row number */}
-            <div className="flex items-center justify-center w-8 h-8 rounded bg-gray-100 text-xs font-medium text-gray-600">
+            <div className="flex items-center justify-center w-8 h-8 rounded bg-white text-xs font-medium text-gray-600">
               {rowIndex}
             </div>
             
@@ -160,11 +160,11 @@ export function createEnhancedColumns({
             </div>
             
             {/* File icon */}
-            <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+            <FileText className="h-4 w-4 text-gray-600 flex-shrink-0" />
             
             {/* File name */}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate" title={fileName}>
+              <p className="text-sm font-medium text-gray-900 whitespace-pre-wrap break-words text-center">
                 {fileName}
               </p>
             </div>
